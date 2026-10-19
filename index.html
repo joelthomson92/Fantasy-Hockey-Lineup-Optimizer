@@ -132,6 +132,19 @@ nav.tabs button.on{color:var(--accent)}
 .preview{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
 .preview .row.bad{background:var(--warn-soft);color:var(--warn)}
 .muted{color:var(--muted)}
+.srow.season{grid-template-columns:44px 1fr auto;align-items:center}
+.srow.season.past{opacity:.5}
+.nights{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:5px 0 4px;max-width:260px}
+.night{height:22px;border-radius:4px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;
+  background:color-mix(in srgb,var(--accent) calc(var(--a)*100%),var(--card))}
+.night.off{outline:1.5px solid var(--good);outline-offset:-1.5px}
+.gg.hot{color:var(--warn)}
+.tag{font-size:10px;font-weight:700;color:var(--accent-ink);background:var(--accent);border-radius:5px;padding:0 5px}
+
+.wkchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.wkchips .fbtn{display:flex;flex-direction:column;align-items:center;padding:5px 10px;line-height:1.2}
+.wkchips .fbtn small{font-size:10px;font-weight:500}
+.stat b.g{color:var(--good)}.stat b.w{color:var(--warn)}.num b.g{color:var(--good)}.num b.w{color:var(--warn)}
 .srow.tap{grid-template-columns:44px 1fr auto 12px;cursor:pointer}
 .srow.tap:active{background:var(--chip)}
 .chev{color:var(--faint);font-size:20px;line-height:1}
@@ -164,7 +177,7 @@ a{color:var(--accent)}
 .swipe-front{position:relative;background:var(--card);transition:transform .2s ease;touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .lockbtn{flex:none;width:34px;height:34px;margin-left:-6px;border:0;border-radius:9px;background:transparent;color:var(--faint);cursor:pointer;display:flex;align-items:center;justify-content:center}
 .lockbtn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.lockbtn.on{color:var(--accent);background:var(--accent-soft)}
+.lockbtn.open{color:var(--warn);background:var(--warn-soft)}
 
 </style>
 </head>
@@ -179,6 +192,7 @@ a{color:var(--accent)}
     <div class="seg" id="rangeSeg">
       <button data-r="rest">Rest of week</button>
       <button data-r="full">Full week</button>
+      <button data-r="season">Season</button>
     </div>
   </div>
 </header>
@@ -187,6 +201,7 @@ a{color:var(--accent)}
   <section id="tab-lineup"></section>
   <section id="tab-roster" class="hidden"></section>
   <section id="tab-stream" class="hidden"></section>
+  <section id="tab-trades" class="hidden"></section>
   <section id="tab-settings" class="hidden"></section>
 </main>
 
@@ -194,6 +209,7 @@ a{color:var(--accent)}
   <button data-tab="lineup" class="on"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Lineup</button>
   <button data-tab="roster"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><path d="M16 5.2a3 3 0 0 1 0 5.6M18 14.6c1.3.7 2.2 2.2 2.5 4.4"/></svg>Roster</button>
   <button data-tab="stream"><svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg>Streamers</button>
+  <button data-tab="trades"><svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>Trades</button>
   <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
 </div></nav>
 
@@ -211,8 +227,54 @@ const SCHED = {"start":"2026-09-28","weeks":[1,1,1,1,1,1,1,2,2,2,2,2,2,2,3,3,3,3
    Yahoo position eligibility filled in from the ranks sheet where known.
    Rows: [nhlId, name, team, "C,LW", source]. Players on injured reserve can be
    missing from the NHL feed; the editor still accepts any typed name. */
-const DIR_RAW = [[8478421,"A.J. Greer","ANA","LW","nhl"],[8473986,"Alex Killorn","ANA","LW","nhl"],[8484762,"Beckett Sennecke","ANA","RW","yahoo"],[8483445,"Cutter Gauthier","ANA","C,LW,RW","yahoo"],[8481563,"Drew Helleson","ANA","D","nhl"],[8478366,"Frank Vatrano","ANA","RW","nhl"],[8482178,"Ian Moore","ANA","D","nhl"],[8481605,"Jackson LaCombe","ANA","D","yahoo"],[8482408,"Jeff Malott","ANA","LW","nhl"],[8481538,"Judd Caulfield","ANA","RW","nhl"],[8484153,"Leo Carlsson","ANA","C","yahoo"],[8480843,"Lukas Dostal","ANA","G","yahoo"],[8475798,"Mikael Granlund","ANA","C,LW","yahoo"],[8475324,"Nick Jensen","ANA","D","nhl"],[8486052,"Nikita Klepov","ANA","RW","nhl"],[8481754,"Nikita Nesterenko","ANA","C","nhl"],[8483521,"Noah Warren","ANA","D","nhl"],[8483490,"Pavel Mintyukov","ANA","D","nhl"],[8480068,"Ryan Poehling","ANA","C","nhl"],[8482118,"Sam Colangelo","ANA","RW","nhl"],[8485512,"Tim Washe","ANA","C","nhl"],[8484262,"Travis Mitchell","ANA","D","nhl"],[8483482,"Tristan Luneau","ANA","D","nhl"],[8482731,"Tyson Hinds","ANA","D","nhl"],[8478024,"Ville Husso","ANA","G","nhl"],[8479999,"Casey Mittelstadt","BOS","C","nhl"],[8479325,"Charlie McAvoy","BOS","D","yahoo"],[8477365,"Connor Clifton","BOS","D","nhl"],[8477956,"David Pastrnak","BOS","RW","yahoo"],[8477496,"Elias Lindholm","BOS","C","yahoo"],[8483489,"Fraser Minten","BOS","C","nhl"],[8483017,"Frederic Brunet","BOS","D","nhl"],[8476854,"Hampus Lindholm","BOS","D","nhl"],[8482175,"JJ Peterka","BOS","LW,RW","yahoo"],[8485395,"James Hagens","BOS","C","yahoo"],[8480280,"Jeremy Swayman","BOS","G","yahoo"],[8481219,"Jonathan Aspirot","BOS","D","nhl"],[8482177,"Marat Khusnutdinov","BOS","C","nhl"],[8480355,"Mark Kastelic","BOS","C","nhl"],[8482511,"Mason Lohrei","BOS","D","nhl"],[8483505,"Matthew Poitras","BOS","C","nhl"],[8480022,"Michael DiPietro","BOS","G","nhl"],[8479987,"Morgan Geekie","BOS","C,LW,RW","yahoo"],[8477507,"Nikita Zadorov","BOS","D","yahoo"],[8478401,"Pavel Zacha","BOS","C,LW","yahoo"],[8476374,"Sean Kuraly","BOS","C","nhl"],[8479661,"Tanner Jeannot","BOS","LW","nhl"],[8478840,"Will Borgen","BOS","D","nhl"],[8479312,"Alex Lyon","BUF","G","yahoo"],[8479359,"Beck Malenstyn","BUF","LW","nhl"],[8481551,"Colten Ellis","BUF","G","nhl"],[8479982,"Conor Timmins","BUF","D","nhl"],[8478502,"Dennis Gilbert","BUF","D","nhl"],[8482097,"Jack Quinn","BUF","RW","yahoo"],[8483468,"Jiri Kulich","BUF","C","nhl"],[8482659,"Josh Doan","BUF","RW","yahoo"],[8480064,"Josh Norris","BUF","C","yahoo"],[8479941,"Justin Danforth","BUF","RW","nhl"],[8484797,"Konsta Helenius","BUF","C","yahoo"],[8481806,"Louis Crevier","BUF","D","nhl"],[8476891,"Matt Grzelcyk","BUF","D","nhl"],[8480807,"Mattias Samuelsson","BUF","D","yahoo"],[8483500,"Noah Ostlund","BUF","C","nhl"],[8482803,"Olen Zellweger","BUF","D","yahoo"],[8482671,"Owen Power","BUF","D","nhl"],[8481522,"Peyton Krebs","BUF","C","nhl"],[8480839,"Rasmus Dahlin","BUF","D","yahoo"],[8480802,"Ryan McLeod","BUF","C","nhl"],[8475842,"Sam Carrick","BUF","C","nhl"],[8479420,"Tage Thompson","BUF","C,RW","yahoo"],[8482896,"Tyson Kozak","BUF","C","nhl"],[8480045,"Ukko-Pekka Luukkonen","BUF","G","yahoo"],[8484145,"Zach Benson","BUF","LW","yahoo"],[8484305,"Zach Metsa","BUF","D","nhl"],[null,"Alexander Nikishin","CAR","D","ranks"],[8480830,"Andrei Svechnikov","CAR","LW,RW","yahoo"],[8484203,"Bradly Nadeau","CAR","LW","nhl"],[8483548,"Brandon Bussi","CAR","G","yahoo"],[8480762,"Eric Robinson","CAR","LW","nhl"],[8476958,"Jaccob Slavin","CAR","D","nhl"],[8482809,"Jackson Blake","CAR","RW","yahoo"],[8478970,"Jalen Chatfield","CAR","D","nhl"],[8480829,"Jesperi Kotkaniemi","CAR","C","nhl"],[8476921,"Jordan Martinook","CAR","LW","nhl"],[8473533,"Jordan Staal","CAR","C","nhl"],[8479976,"Juuso Välimäki","CAR","D","nhl"],[8480817,"K'Andre Miller","CAR","D","yahoo"],[8482702,"Logan Stankoven","CAR","C,RW","yahoo"],[8476873,"Mark Jankowski","CAR","LW","nhl"],[8476422,"Mike Reilly","CAR","D","nhl"],[8475235,"Nicolas Deslauriers","CAR","LW","nhl"],[8477940,"Nikolaj Ehlers","CAR","LW","yahoo"],[8481611,"Pyotr Kochetkov","CAR","G","yahoo"],[8480336,"Sean Walker","CAR","D","yahoo"],[8478427,"Sebastian Aho","CAR","C","yahoo"],[null,"Seth Jarvis","CAR","LW,RW","ranks"],[8476906,"Shayne Gostisbehere","CAR","D","yahoo"],[8475791,"Taylor Hall","CAR","LW","yahoo"],[8477478,"William Carrier","CAR","LW","nhl"],[8484166,"Adam Fantilli","CBJ","C","yahoo"],[8475660,"Cam Talbot","CBJ","G","nhl"],[8477369,"Carson Soucy","CBJ","D","nhl"],[8475745,"Charlie Coyle","CBJ","C","yahoo"],[8482705,"Cole Sillinger","CBJ","C","nhl"],[8478856,"Conor Garland","CBJ","RW","nhl"],[8479371,"Dante Fabbro","CBJ","D","nhl"],[8478046,"Danton Heinen","CBJ","LW","nhl"],[8483485,"Denton Mateychuk","CBJ","D","yahoo"],[8481716,"Dmitri Voronkov","CBJ","LW","nhl"],[8482126,"Emil Andrae","CBJ","D","nhl"],[8475790,"Erik Gudbranson","CBJ","D","nhl"],[8478500,"Ivan Provorov","CBJ","D","yahoo"],[8481161,"Jake Christiansen","CBJ","D","nhl"],[8482982,"Jet Greaves","CBJ","G","yahoo"],[8482660,"Kent Johnson","CBJ","C","nhl"],[8483432,"Luca Del Bel Belluz","CBJ","C","nhl"],[8479671,"Mathieu Olivier","CBJ","RW","nhl"],[8482720,"Matthew Knies","CBJ","LW,RW","yahoo"],[8479066,"Ryan Lomberg","CBJ","LW","nhl"],[8477497,"Sean Monahan","CBJ","C","nhl"],[8477501,"Valeri Nichushkin","CBJ","LW,RW","yahoo"],[8478460,"Zach Werenski","CBJ","D","yahoo"],[8483609,"Adam Klapka","CGY","RW","nhl"],[8484234,"Aydar Suniev","CGY","LW","nhl"],[8482747,"Brennan Othmann","CGY","LW","nhl"],[8482445,"Devin Cooley","CGY","G","nhl"],[8481692,"Dustin Wolf","CGY","G","yahoo"],[8478136,"Jake Middleton","CGY","D","nhl"],[8480797,"Joel Farabee","CGY","LW","nhl"],[8477810,"Joel Hanley","CGY","D","nhl"],[8484154,"Jonathan Castagna","CGY","C","nhl"],[8476456,"Jonathan Huberdeau","CGY","LW","nhl"],[8480860,"Kevin Bahl","CGY","D","nhl"],[8481028,"Martin Pospisil","CGY","C","nhl"],[8482679,"Matt Coronato","CGY","RW","yahoo"],[8484860,"Matvei Gridin","CGY","LW,RW","yahoo"],[8484958,"Maxim Tsyplakov","CGY","RW","nhl"],[8474150,"Mikael Backlund","CGY","C","nhl"],[8480028,"Morgan Frost","CGY","C","nhl"],[8476458,"Ryan Strome","CGY","C","nhl"],[8484180,"Samuel Honzek","CGY","LW","nhl"],[8483495,"Simon Nemec","CGY","D","yahoo"],[8482165,"Yan Kuznetsov","CGY","D","nhl"],[8481068,"Yegor Sharangovich","CGY","C","nhl"],[8480727,"Zach Whitecloud","CGY","D","nhl"],[8484768,"Zayne Parekh","CGY","D","yahoo"],[8481568,"Alex Vlasic","CHI","D","nhl"],[8478233,"Andrew Mangiapane","CHI","LW","nhl"],[8485391,"Anton Frondell","CHI","C","yahoo"],[8484783,"Artyom Levshunov","CHI","D","yahoo"],[8482821,"Arvid Soderblom","CHI","G","nhl"],[8481524,"Bowen Byram","CHI","D","yahoo"],[8482062,"Cole Smith","CHI","RW","nhl"],[8484144,"Connor Bedard","CHI","C,RW","yahoo"],[8476952,"Dominic Toninato","CHI","C","nhl"],[8482807,"Ethan Del Mastro","CHI","D","nhl"],[8483493,"Frank Nazar","CHI","C","yahoo"],[8474013,"Ian Cole","CHI","D","nhl"],[8478413,"Jordan Greenway","CHI","LW","nhl"],[8483466,"Kevin Korchinski","CHI","D","nhl"],[8484197,"Oliver Moore","CHI","C","nhl"],[8474141,"Patrick Kane","CHI","RW","yahoo"],[8484390,"Roman Kantserov","CHI","RW","nhl"],[8477987,"Ryan Donato","CHI","C,LW,RW","yahoo"],[8483450,"Ryan Greene","CHI","C","nhl"],[8483506,"Sam Rinzel","CHI","D","yahoo"],[8481519,"Spencer Knight","CHI","G","yahoo"],[8476882,"Teuvo Teravainen","CHI","C","nhl"],[8477479,"Tyler Bertuzzi","CHI","LW,RW","yahoo"],[8482176,"Wyatt Kaiser","CHI","D","nhl"],[8477476,"Artturi Lehkonen","COL","LW","nhl"],[8470613,"Brent Burns","COL","D","yahoo"],[8476967,"Brett Kulak","COL","D","nhl"],[8475754,"Brock Nelson","COL","C","yahoo"],[8480069,"Cale Makar","COL","D","yahoo"],[8478038,"Devon Toews","COL","D","yahoo"],[8482768,"Fedor Svechkov","COL","C","nhl"],[8476455,"Gabriel Landeskog","COL","LW,RW","yahoo"],[8484149,"Gavin Brindley","COL","C","nhl"],[8475768,"Jaden Schwartz","COL","LW","nhl"],[8476312,"Josh Manson","COL","D","nhl"],[8481186,"Logan O'Connor","COL","RW","nhl"],[8478406,"Mackenzie Blackwood","COL","G","yahoo"],[8480039,"Martin Necas","COL","RW","yahoo"],[8477492,"Nathan MacKinnon","COL","C","yahoo"],[8475172,"Nazem Kadri","COL","C,LW","yahoo"],[8478462,"Nicolas Roy","COL","C","nhl"],[8478454,"Noah Juulsen","COL","D","nhl"],[8480448,"Parker Kelly","COL","C","nhl"],[8484258,"Sam Malinski","COL","D","yahoo"],[8475809,"Scott Wedgewood","COL","G","yahoo"],[8486171,"T.J. Hughes","COL","RW","nhl"],[8482742,"Zachary L'Heureux","COL","LW","nhl"],[8484938,"Arttu Hyry","DAL","RW","nhl"],[8479193,"Casey DeSmith","DAL","G","nhl"],[8476278,"Colin Blackwell","DAL","C","nhl"],[8476902,"Esa Lindell","DAL","D","yahoo"],[8479979,"Jake Oettinger","DAL","G","yahoo"],[8473994,"Jamie Benn","DAL","LW","nhl"],[8480027,"Jason Robertson","DAL","LW,RW","yahoo"],[8481641,"Joel Kiviranta","DAL","LW","nhl"],[8484829,"Justin Hryckowian","DAL","C","nhl"],[8477335,"Kyle Burroughs","DAL","D","nhl"],[8478476,"Kyle Capobianco","DAL","D","nhl"],[8483425,"Lian Bichsel","DAL","D","nhl"],[8475168,"Matt Duchene","DAL","C,RW","yahoo"],[8478420,"Mikko Rantanen","DAL","LW,RW","yahoo"],[8480036,"Miro Heiskanen","DAL","D","yahoo"],[8480878,"Nils Lundkvist","DAL","D","nhl"],[8480840,"Oskar Bäck","DAL","C","nhl"],[8476889,"Radek Faksa","DAL","C","nhl"],[8478449,"Roope Hintz","DAL","C","yahoo"],[8479351,"Sam Steel","DAL","C","nhl"],[8481581,"Thomas Harley","DAL","D","yahoo"],[8474574,"Tyler Myers","DAL","D","nhl"],[8475794,"Tyler Seguin","DAL","C","nhl"],[8482740,"Wyatt Johnston","DAL","C,RW","yahoo"],[8481607,"Albert Johansson","DET","D","nhl"],[8479337,"Alex DeBrincat","DET","LW,RW","yahoo"],[8477971,"Andreas Englund","DET","D","nhl"],[8477429,"Andrew Copp","DET","C","nhl"],[8483679,"Anton Johansson","DET","D","nhl"],[8484223,"Axel Sandin-Pellikka","DET","D","nhl"],[8475279,"Ben Chiarot","DET","D","nhl"],[8482802,"Carter Mazur","DET","LW","nhl"],[8480193,"Daniil Tarasov","DET","G","nhl"],[8477946,"Dylan Larkin","DET","C","yahoo"],[8484471,"Emmitt Finnie","DET","C","nhl"],[8477456,"J.T. Compher","DET","LW","nhl"],[8480879,"Jacob Bernard-Docker","DET","D","nhl"],[8476434,"John Gibson","DET","G","yahoo"],[8475753,"Justin Faulk","DET","D","yahoo"],[8478434,"Keegan Kolesar","DET","RW","nhl"],[8482078,"Lucas Raymond","DET","RW","yahoo"],[8483464,"Marco Kasper","DET","C","nhl"],[8478891,"Mason Appleton","DET","C","nhl"],[8484794,"Michael Brandsegg-Nygård","DET","RW","nhl"],[8479992,"Michael Rasmussen","DET","C","nhl"],[8481542,"Moritz Seider","DET","D","yahoo"],[8484160,"Nate Danielson","DET","C","nhl"],[8480326,"Sheldon Dries","DET","C","nhl"],[null,"Simon Edvinsson","DET","D","ranks"],[8478042,"Viktor Arvidsson","DET","LW,RW","yahoo"],[8482171,"William Wallinder","DET","D","nhl"],[8480831,"Alec Regula","EDM","D","nhl"],[8480029,"Alex Formenton","EDM","LW","nhl"],[8482703,"Colton Dach","EDM","C","nhl"],[8478402,"Connor McDavid","EDM","C","yahoo"],[8476473,"Connor Murphy","EDM","D","nhl"],[8482221,"Devon Levi","EDM","G","nhl"],[8480803,"Evan Bouchard","EDM","D","yahoo"],[8480842,"Filip Hallander","EDM","C","nhl"],[8475883,"Frederik Andersen","EDM","G","yahoo"],[8483455,"Isaac Howard","EDM","LW","nhl"],[8478013,"Jake Walman","EDM","D","nhl"],[8477450,"Jason Dickinson","EDM","C","nhl"],[8484509,"Josh Samanski","EDM","C","nhl"],[8477953,"Kasperi Kapanen","EDM","RW","nhl"],[8477934,"Leon Draisaitl","EDM","C,LW","yahoo"],[8478472,"Mathieu Joseph","EDM","RW","nhl"],[8483512,"Matt Savoie","EDM","C,RW","yahoo"],[8475218,"Mattias Ekholm","EDM","D","yahoo"],[8477406,"Mattias Janmark","EDM","C","nhl"],[8479368,"Max Jones","EDM","LW","nhl"],[8486161,"Owen Michaels","EDM","RW","nhl"],[8476454,"Ryan Nugent-Hopkins","EDM","C,LW","yahoo"],[8478854,"Ryan Shea","EDM","D","nhl"],[8482166,"Shakir Mukhamadullin","EDM","D","nhl"],[8479365,"Trent Frederic","EDM","C","nhl"],[8477465,"Tristan Jarry","EDM","G","yahoo"],[8480834,"Ty Emberson","EDM","D","nhl"],[8481617,"Vasily Podkolzin","EDM","RW","nhl"],[8475786,"Zach Hyman","EDM","LW,RW","yahoo"],[8477932,"Aaron Ekblad","FLA","D","yahoo"],[8481033,"Akira Schmid","FLA","G","nhl"],[8477493,"Aleksander Barkov","FLA","C","nhl"],[8482113,"Anton Lundell","FLA","C","yahoo"],[8478147,"Bokondji Imama","FLA","LW","nhl"],[8473419,"Brad Marchand","FLA","LW,RW","yahoo"],[8480801,"Brady Tkachuk","FLA","C,LW","yahoo"],[8477409,"Carter Verhaeghe","FLA","LW","yahoo"],[8484900,"Cooper Black","FLA","G","nhl"],[8475179,"Dmitry Kulikov","FLA","D","nhl"],[8480185,"Eetu Luostarinen","FLA","C","nhl"],[8477903,"Garnet Hathaway","FLA","RW","nhl"],[8478055,"Gustav Forsling","FLA","D","nhl"],[8474593,"Jacob Markstrom","FLA","G","yahoo"],[8479981,"Jonah Gadjovich","FLA","LW","nhl"],[8474189,"Lars Eller","FLA","C","nhl"],[8479314,"Matthew Tkachuk","FLA","LW,RW","yahoo"],[8478859,"Niko Mikkola","FLA","D","nhl"],[8475462,"Radko Gudas","FLA","D","nhl"],[8477935,"Sam Bennett","FLA","C","yahoo"],[8478043,"Sam Lafferty","FLA","C","nhl"],[8477933,"Sam Reinhart","FLA","RW","yahoo"],[8483771,"Sandis Vilmanis","FLA","LW","nhl"],[8477495,"Seth Jones","FLA","D","yahoo"],[8484304,"Uvis Balinskis","FLA","D","nhl"],[8477960,"Adrian Kempe","LAK","RW","yahoo"],[8482155,"Alex Laferriere","LAK","C,LW,RW","yahoo"],[8481532,"Alex Turcotte","LAK","C","nhl"],[8481732,"Andre Lee","LAK","LW","nhl"],[8476341,"Anton Forsberg","LAK","G","nhl"],[8478550,"Artemi Panarin","LAK","LW","yahoo"],[8482730,"Brandt Clarke","LAK","D","yahoo"],[8475208,"Brian Dumoulin","LAK","D","nhl"],[8476879,"Cody Ceci","LAK","D","nhl"],[8470621,"Corey Perry","LAK","RW","nhl"],[8475311,"Darcy Kuemper","LAK","G","yahoo"],[8474563,"Drew Doughty","LAK","D","nhl"],[8476979,"Erik Gustafsson","LAK","D","nhl"],[8475287,"Erik Haula","LAK","LW","nhl"],[8476469,"Joel Armia","LAK","RW","nhl"],[8476441,"Joel Edmundson","LAK","D","nhl"],[8477942,"Kevin Fiala","LAK","LW","yahoo"],[8475692,"Mats Zuccarello","LAK","RW","yahoo"],[8479998,"Mikey Anderson","LAK","D","nhl"],[8482124,"Quinton Byfield","LAK","C","yahoo"],[8482726,"Samuel Helenius","LAK","C","nhl"],[8476872,"Scott Laughton","LAK","C","nhl"],[8479675,"Trevor Moore","LAK","LW","nhl"],[8476399,"Blake Coleman","MIN","C,LW","yahoo"],[8481553,"Bobby Brink","MIN","RW","nhl"],[8482122,"Brock Faber","MIN","D","yahoo"],[8475717,"Calvin Pickard","MIN","G","nhl"],[8482094,"Daemon Hunt","MIN","D","nhl"],[8483525,"Danila Yurov","MIN","RW","nhl"],[8483766,"David Spacek","MIN","D","nhl"],[8479406,"Filip Gustavsson","MIN","G","yahoo"],[8474716,"Jared Spurgeon","MIN","D","nhl"],[8482661,"Jesper Wallstedt","MIN","G","yahoo"],[8478493,"Joel Eriksson Ek","MIN","C","yahoo"],[8476463,"Jonas Brodin","MIN","D","nhl"],[8477993,"Justin Kirkland","MIN","C","nhl"],[8478864,"Kirill Kaprizov","MIN","LW","yahoo"],[8475220,"Marcus Foligno","MIN","LW","nhl"],[8481557,"Matt Boldy","MIN","LW,RW","yahoo"],[8482641,"Matt Kiersted","MIN","D","nhl"],[8485702,"Maxim Shabanov","MIN","RW","nhl"],[8477446,"Michael McCarron","MIN","C","nhl"],[8473422,"Nick Foligno","MIN","LW","nhl"],[8481477,"Nico Sturm","MIN","C","nhl"],[8476874,"Olli Maatta","MIN","D","nhl"],[8480800,"Quinn Hughes","MIN","D","yahoo"],[8483478,"Rieger Lorenz","MIN","LW","nhl"],[8477451,"Ryan Hartman","MIN","C,RW","yahoo"],[8475752,"Tyler Pitlick","MIN","C","nhl"],[8478508,"Yakov Trenin","MIN","C","nhl"],[8474567,"Zach Bogosian","MIN","D","nhl"],[8483686,"Adam Engstrom","MTL","D","nhl"],[8481618,"Alex Newhook","MTL","C","nhl"],[8478851,"Alexandre Carrier","MTL","D","nhl"],[8480074,"Alexandre Texier","MTL","LW","nhl"],[8482964,"Arber Xhekaj","MTL","D","nhl"],[8475184,"Chris Kreider","MTL","LW","yahoo"],[8481540,"Cole Caufield","MTL","LW,RW","yahoo"],[8484220,"David Reinbacher","MTL","D","nhl"],[8484403,"Florian Xhekaj","MTL","LW","nhl"],[8484984,"Ivan Demidov","MTL","RW","yahoo"],[8484170,"Jacob Fowler","MTL","G","yahoo"],[8478133,"Jake Evans","MTL","C","nhl"],[8482487,"Jakub Dobes","MTL","G","yahoo"],[8476981,"Josh Anderson","MTL","RW","nhl"],[8483515,"Juraj Slafkovský","MTL","LW,RW","yahoo"],[8482087,"Kaiden Guhle","MTL","D","nhl"],[8481523,"Kirby Dach","MTL","C","nhl"],[8483457,"Lane Hutson","MTL","D","yahoo"],[8476875,"Mike Matheson","MTL","D","yahoo"],[8480018,"Nick Suzuki","MTL","C","yahoo"],[8480865,"Noah Dobson","MTL","D","yahoo"],[8482775,"Oliver Kapanen","MTL","C","nhl"],[8483424,"Owen Beck","MTL","C","nhl"],[8476479,"Phillip Danault","MTL","C","nhl"],[8478470,"Samuel Montembeault","MTL","G","nhl"],[8482737,"Zachary Bolduc","MTL","RW","nhl"],[8483695,"Amadeus Lombardi","NJD","C","nhl"],[8477511,"Anthony Mantha","NJD","LW,RW","yahoo"],[8481721,"Arseny Gritsyuk","NJD","RW","nhl"],[8475455,"Brenden Dillon","NJD","D","nhl"],[8477488,"Brett Pesce","NJD","D","nhl"],[8479996,"Cody Glass","NJD","C","nhl"],[8477015,"Connor Brown","NJD","RW","nhl"],[8482110,"Dawson Mercer","NJD","C","nhl"],[8480990,"Declan Chisholm","NJD","D","nhl"],[8476462,"Dougie Hamilton","NJD","D","yahoo"],[8478542,"Evan Rodrigues","NJD","C","nhl"],[8481559,"Jack Hughes","NJD","C,LW","yahoo"],[8474596,"Jake Allen","NJD","G","yahoo"],[8480003,"Jesper Boqvist","NJD","C","nhl"],[8479407,"Jesper Bratt","NJD","LW,RW","yahoo"],[8480192,"Johnathan Kovacevic","NJD","D","nhl"],[8478399,"Jonas Siegenthaler","NJD","D","nhl"],[8482146,"Luke Evangelista","NJD","LW,RW","yahoo"],[8482684,"Luke Hughes","NJD","D","yahoo"],[8482076,"Nico Daws","NJD","G","nhl"],[8480002,"Nico Hischier","NJD","C","yahoo"],[8482465,"Rémi Poirier","NJD","G","nhl"],[8476474,"Stefan Noesen","NJD","RW","nhl"],[8478414,"Timo Meier","NJD","LW,RW","yahoo"],[8481726,"Adam Edstrom","NSH","C","nhl"],[8482482,"Adam Wilsby","NSH","D","nhl"],[8477021,"Alexander Kerfoot","NSH","C","nhl"],[8476869,"Brady Skjei","NSH","D","nhl"],[8476887,"Filip Forsberg","NSH","LW","yahoo"],[8480950,"Ilya Lyubushkin","NSH","D","nhl"],[8482072,"Jack Ahcan","NSH","D","nhl"],[8480835,"Jack Drury","NSH","C","nhl"],[8481593,"Jayden Struble","NSH","D","nhl"],[8476539,"Jonathan Marchessault","NSH","C","nhl"],[8481020,"Justus Annunen","NSH","G","nhl"],[8477424,"Juuse Saros","NSH","G","yahoo"],[8483575,"Matt Murray","NSH","G","nhl"],[8484241,"Matthew Wood","NSH","RW","nhl"],[8482145,"Mavrik Bourque","NSH","C,RW","yahoo"],[8480246,"Nick Perbix","NSH","D","nhl"],[8479980,"Nicolas Hague","NSH","D","nhl"],[8481535,"Nils Hoglander","NSH","LW","nhl"],[8483513,"Reid Schaefer","NSH","LW","nhl"],[8474600,"Roman Josi","NSH","D","yahoo"],[8479525,"Ross Colton","NSH","C","nhl"],[8475158,"Ryan O'Reilly","NSH","C","yahoo"],[8474564,"Steven Stamkos","NSH","C,RW","yahoo"],[8486189,"Vitali Pinchuk","NSH","C","nhl"],[8482806,"William Trudeau","NSH","D","nhl"],[8476917,"Adam Pelech","NYI","D","nhl"],[8481014,"Alexander Romanov","NYI","D","nhl"],[8477407,"Anthony Duclair","NYI","LW","nhl"],[8477500,"Bo Horvat","NYI","C","yahoo"],[8475170,"Brayden Schenn","NYI","C,LW","yahoo"],[8484221,"Calum Ritchie","NYI","C","nhl"],[8475231,"Casey Cizikas","NYI","C","nhl"],[8482476,"Emil Heineman","NYI","LW","nhl"],[8478009,"Ilya Sorokin","NYI","G","yahoo"],[8476419,"Jean-Gabriel Pageau","NYI","C","nhl"],[8481237,"Kyle MacLean","NYI","C","nhl"],[8475151,"Kyle Palmieri","NYI","C","nhl"],[8479378,"Logan Stanley","NYI","D","nhl"],[null,"Mathew Barzal","NYI","C,RW","ranks"],[8481711,"Matias Maccelli","NYI","LW","nhl"],[8482516,"Matthew Kessel","NYI","D","nhl"],[8485366,"Matthew Schaefer","NYI","D","yahoo"],[8476292,"Ondrej Palat","NYI","LW","nhl"],[8477506,"Ryan Pulock","NYI","D","nhl"],[8476429,"Scott Mayfield","NYI","D","nhl"],[8473575,"Semyon Varlamov","NYI","G","nhl"],[8481601,"Simon Holmstrom","NYI","RW","nhl"],[8477950,"Tony DeAngelo","NYI","D","nhl"],[8485388,"Victor Eklund","NYI","RW","yahoo"],[8479323,"Adam Fox","NYR","D","yahoo"],[8483669,"Adam Sykora","NYR","LW","nhl"],[8485957,"Alberts Smits","NYR","D","nhl"],[8482109,"Alexis Lafrenière","NYR","LW,RW","yahoo"],[8482073,"Braden Schneider","NYR","D","nhl"],[8482193,"Dylan Garand","NYR","G","nhl"],[8480009,"Eeli Tolvanen","NYR","RW","nhl"],[8484210,"Gabe Perreault","NYR","RW","yahoo"],[8478048,"Igor Shesterkin","NYR","G","yahoo"],[8476468,"J.T. Miller","NYR","C,LW,RW","yahoo"],[8482877,"Jaroslav Chmelar","NYR","RW","nhl"],[8476914,"Joonas Korpisalo","NYR","G","nhl"],[8480813,"Joseph Veleno","NYR","C","nhl"],[8475413,"Justin Dowling","NYR","C","nhl"],[8477969,"Marcus Pettersson","NYR","D","nhl"],[8482460,"Matt Rempe","NYR","C","nhl"],[8476459,"Mika Zibanejad","NYR","C,RW","yahoo"],[8483690,"Noah Laba","NYR","C","nhl"],[8477416,"Oliver Bjorkstrand","NYR","RW","nhl"],[8481604,"Pavel Dorofeyev","NYR","LW,RW","yahoo"],[8482666,"Scott Morrow","NYR","D","nhl"],[8480434,"Sean Durzi","NYR","D","yahoo"],[8477484,"Spencer Martin","NYR","G","nhl"],[8481789,"Tye Kartye","NYR","LW","nhl"],[8478882,"Vladislav Gavrikov","NYR","D","yahoo"],[8482157,"Will Cuylle","NYR","LW,RW","yahoo"],[8477444,"Andre Burakovsky","OTT","LW","nhl"],[8480075,"Cameron Crotty","OTT","D","nhl"],[8484759,"Carter Yakemchuk","OTT","D","nhl"],[8473512,"Claude Giroux","OTT","RW","nhl"],[8480208,"Drake Batherson","OTT","LW,RW","yahoo"],[8481528,"Dylan Cozens","OTT","C","yahoo"],[8480188,"Fabian Zetterlund","OTT","LW","nhl"],[8478173,"Hayden Hodgson","OTT","RW","nhl"],[8482105,"Jake Sanderson","OTT","D","yahoo"],[8481606,"Jordan Spence","OTT","D","nhl"],[8476999,"Linus Ullmark","OTT","G","yahoo"],[8478020,"Michael Amadio","OTT","RW","nhl"],[8476393,"Nick Cousins","OTT","C","nhl"],[8484321,"Nikolas Matinpalo","OTT","D","nhl"],[8482092,"Ridly Greig","OTT","C","nhl"],[8481035,"Samuel Ersson","OTT","G","nhl"],[8481596,"Shane Pinto","OTT","C","yahoo"],[8483676,"Stephen Halliday","OTT","C","nhl"],[8478469,"Thomas Chabot","OTT","D","yahoo"],[8482116,"Tim Stützle","OTT","C,LW","yahoo"],[8482095,"Tyler Kleven","OTT","D","nhl"],[8477998,"Warren Foegele","OTT","LW","nhl"],[8482667,"William Eklund","OTT","LW,RW","yahoo"],[8481546,"Cam York","PHI","D","nhl"],[8477989,"Christian Dvorak","PHI","C","nhl"],[8478435,"Dan Vladar","PHI","G","yahoo"],[8483460,"David Jiricek","PHI","D","nhl"],[8484142,"Denver Barkey","PHI","C","nhl"],[8475253,"Garrett Wilson","PHI","LW","nhl"],[8482169,"Helge Grans","PHI","D","nhl"],[8480021,"Jack Studnicka","PHI","C","nhl"],[8482142,"Jamie Drysdale","PHI","D","nhl"],[8479361,"Joseph Woll","PHI","G","yahoo"],[8484387,"Matvei Michkov","PHI","LW,RW","yahoo"],[8478047,"Michael Bunting","PHI","LW","nhl"],[8476372,"Nick Seeler","PHI","D","nhl"],[8483733,"Nikita Grebenkin","PHI","RW","nhl"],[8480220,"Noah Cates","PHI","LW","nhl"],[8478569,"Noel Acciari","PHI","C","nhl"],[8484148,"Oliver Bonk","PHI","D","nhl"],[8480015,"Owen Tippett","PHI","RW","nhl"],[8485406,"Porter Martone","PHI","RW","yahoo"],[8477499,"Rasmus Ristolainen","PHI","D","nhl"],[8476461,"Sean Couturier","PHI","C","nhl"],[8481122,"Simon Benoit","PHI","D","nhl"],[8478439,"Travis Konecny","PHI","LW,RW","yahoo"],[8477948,"Travis Sanheim","PHI","D","yahoo"],[8481533,"Trevor Zegras","PHI","C,LW,RW","yahoo"],[8482159,"Tyson Foerster","PHI","LW,RW","yahoo"],[8483808,"Andrei Kuzmenko","PIT","LW","nhl"],[8481668,"Arturs Silovs","PIT","G","yahoo"],[8485414,"Ben Kindel","PIT","C","nhl"],[8481481,"Blake Lizotte","PIT","C","nhl"],[8475810,"Bryan Rust","PIT","RW","yahoo"],[8480980,"Connor Dewar","PIT","C","nhl"],[8483398,"Declan Carlile","PIT","D","nhl"],[8482475,"Egor Chinakhov","PIT","LW,RW","yahoo"],[8481725,"Elmer Soderblom","PIT","LW","nhl"],[8474578,"Erik Karlsson","PIT","D","yahoo"],[8471215,"Evgeni Malkin","PIT","C,LW,RW","yahoo"],[8482148,"Hendrix Lapierre","PIT","C","nhl"],[8479638,"Justin Brazeau","PIT","RW","nhl"],[8481527,"Kaedan Korczak","PIT","D","nhl"],[8471724,"Kris Letang","PIT","D","yahoo"],[8481582,"Nick Robertson","PIT","LW","nhl"],[8476483,"Rickard Rakell","PIT","C,LW,RW","yahoo"],[8481564,"Ryan Johnson","PIT","D","nhl"],[8479398,"Samuel Girard","PIT","D","nhl"],[8483703,"Sergei Murashov","PIT","G","yahoo"],[8471675,"Sidney Crosby","PIT","C","yahoo"],[8481056,"Spencer Stastney","PIT","D","nhl"],[8478438,"Tommy Novak","PIT","C","nhl"],[8477845,"Trevor van Riemsdyk","PIT","D","nhl"],[8482758,"Ville Koivunen","PIT","RW","nhl"],[8476457,"Adam Larsson","SEA","D","nhl"],[8483570,"Ben Meyers","SEA","C","nhl"],[8484800,"Berkly Catton","SEA","C","nhl"],[8482259,"Bobby McMann","SEA","LW,RW","yahoo"],[8477986,"Brandon Montour","SEA","D","yahoo"],[8479985,"Cale Fleury","SEA","D","nhl"],[8476905,"Chandler Stephenson","SEA","C","nhl"],[8480876,"Curtis Douglas","SEA","C","nhl"],[8477919,"Frederick Gaudreau","SEA","C","nhl"],[8482874,"Jacob Melanson","SEA","RW","nhl"],[8485383,"Jake O'Brien","SEA","C","nhl"],[8477955,"Jared McCann","SEA","C,LW","yahoo"],[8478916,"Joey Daccord","SEA","G","yahoo"],[8474586,"Jordan Eberle","SEA","RW","nhl"],[8479372,"Josh Mahura","SEA","D","nhl"],[8481554,"Kaapo Kakko","SEA","RW","nhl"],[8482713,"Mackie Samoskevich","SEA","RW","nhl"],[8482665,"Matty Beniers","SEA","C","yahoo"],[8475831,"Philipp Grubauer","SEA","G","nhl"],[8479324,"Ryan Lindgren","SEA","D","nhl"],[8482751,"Ryan Winterton","SEA","C","nhl"],[8482858,"Ryker Evans","SEA","D","nhl"],[8483524,"Shane Wright","SEA","C","nhl"],[8482866,"Ville Ottavainen","SEA","D","nhl"],[8478407,"Vince Dunn","SEA","D","yahoo"],[8478874,"Adam Gaudette","SJ","RW","nhl"],[8479718,"Alex Barré-Boulet","SJ","C","nhl"],[8477968,"Alex Nedeljkovic","SJ","G","nhl"],[8477505,"Alexander Wennberg","SJ","C","nhl"],[8476624,"Barclay Goodrow","SJ","C","nhl"],[8484911,"Collin Graf","SJ","LW,RW","yahoo"],[8477498,"Darnell Nurse","SJ","D","yahoo"],[8475200,"Dmitry Orlov","SJ","D","nhl"],[8484994,"Igor Chernyshov","SJ","LW,RW","yahoo"],[8486103,"Ivar Stenberg","SJ","LW","nhl"],[8476885,"Jacob Trouba","SJ","D","yahoo"],[8480748,"Kiefer Sherwood","SJ","LW,RW","yahoo"],[8484152,"Luca Cagnoni","SJ","D","nhl"],[8484801,"Macklin Celebrini","SJ","C","yahoo"],[8478975,"Mason Marchment","SJ","LW","yahoo"],[8480891,"Michael Kesselring","SJ","D","nhl"],[8485402,"Michael Misa","SJ","C","yahoo"],[8482700,"Nolan Allan","SJ","D","nhl"],[8484806,"Sam Dickinson","SJ","D","nhl"],[8480848,"Ty Dellandrea","SJ","C","nhl"],[8475726,"Tyler Toffoli","SJ","LW,RW","yahoo"],[8484227,"Will Smith","SJ","LW,RW","yahoo"],[8482137,"Yaroslav Askarov","SJ","G","yahoo"],[8482859,"Zack Ostapchuk","SJ","C","nhl"],[8484790,"Adam Jiricek","STL","D","nhl"],[8480281,"Alexey Toropchenko","STL","RW","nhl"],[8478443,"Brandon Carlo","STL","D","nhl"],[8475764,"Cam Fowler","STL","D","nhl"],[8476892,"Colton Parayko","STL","D","yahoo"],[8481580,"Connor McMichael","STL","C,LW","yahoo"],[8484164,"Dalibor Dvorsky","STL","RW","nhl"],[8479346,"Dillon Dube","STL","C","nhl"],[8482077,"Dylan Holloway","STL","C,LW","yahoo"],[8482121,"Dylan Peterson","STL","C","nhl"],[8482089,"Jake Neighbours","STL","LW,RW","yahoo"],[8483516,"Jimmy Snuggerud","STL","RW","yahoo"],[8480981,"Joel Hofer","STL","G","yahoo"],[8481013,"Jonatan Berggren","STL","RW","nhl"],[8476412,"Jordan Binnington","STL","G","yahoo"],[8482111,"Justin Barron","STL","D","nhl"],[8482733,"Logan Mailloux","STL","D","yahoo"],[8482745,"Mason McTavish","STL","C","yahoo"],[8477402,"Pavel Buchnevich","STL","LW","nhl"],[8481598,"Philip Broberg","STL","D","yahoo"],[8480459,"Pius Suter","STL","C","nhl"],[8480023,"Robert Thomas","STL","C","yahoo"],[8477527,"Ross Johnston","STL","LW","nhl"],[8484188,"Theo Lindstein","STL","D","nhl"],[8481006,"Tyler Tucker","STL","D","nhl"],[8482784,"Zach Dean","STL","C","nhl"],[8476883,"Andrei Vasilevskiy","TBL","G","yahoo"],[8478519,"Anthony Cirelli","TBL","C","yahoo"],[8479542,"Brandon Hagel","TBL","LW,RW","yahoo"],[8478010,"Brayden Point","TBL","C","yahoo"],[8480426,"Charle-Edouard D'Astous","TBL","D","nhl"],[8483447,"Conor Geekie","TBL","C","nhl"],[8483710,"Dennis Hildeby","TBL","G","nhl"],[8483752,"Dominic James","TBL","C","nhl"],[8482929,"Emil Lilleberg","TBL","D","nhl"],[8478416,"Erik Cernak","TBL","D","nhl"],[8482201,"Gage Goncalves","TBL","C","nhl"],[8481624,"Ilya Mikheyev","TBL","RW","nhl"],[8482655,"J.J. Moser","TBL","D","yahoo"],[8477404,"Jake Guentzel","TBL","LW,RW","yahoo"],[8479705,"Jeffrey Viel","TBL","LW","nhl"],[8474590,"John Carlson","TBL","D","yahoo"],[8481719,"Max Crozier","TBL","D","nhl"],[8476453,"Nikita Kucherov","TBL","RW","yahoo"],[8480995,"Pontus Holmberg","TBL","RW","nhl"],[8474151,"Ryan McDonagh","TBL","D","nhl"],[8477149,"Scott Sabourin","TBL","RW","nhl"],[8475167,"Victor Hedman","TBL","D","yahoo"],[8476826,"Yanni Gourde","TBL","C","nhl"],[8476878,"Zemgus Girgensons","TBL","C","nhl"],[8476932,"Anthony Stolarz","TOR","G","yahoo"],[8479318,"Auston Matthews","TOR","C","yahoo"],[8480870,"Bo Groulx","TOR","C","nhl"],[8479520,"Brandon Duhaime","TOR","LW","nhl"],[8475690,"Chris Tanev","TOR","D","nhl"],[8476925,"Colton Sissons","TOR","C","nhl"],[8478178,"Darren Raddysh","TOR","D","yahoo"],[8484158,"Easton Cowan","TOR","LW","yahoo"],[8486067,"Gavin McKenna","TOR","LW","nhl"],[8478458,"Jack Roslovic","TOR","C,RW","yahoo"],[8476931,"Jake McCabe","TOR","D","yahoo"],[8475166,"John Tavares","TOR","C","yahoo"],[8480893,"Kirill Marchenko","TOR","RW","yahoo"],[8483546,"Marshall Rifai","TOR","D","nhl"],[8477425,"Miles Wood","TOR","LW","nhl"],[8476853,"Morgan Rielly","TOR","D","yahoo"],[8483565,"Nick Blankenburg","TOR","D","nhl"],[8477426,"Nick Paul","TOR","LW","nhl"],[8475171,"Oliver Ekman-Larsson","TOR","D","yahoo"],[8475683,"Sergei Bobrovsky","TOR","G","yahoo"],[8476927,"Teddy Blueger","TOR","C","nhl"],[8479442,"Troy Stecher","TOR","D","nhl"],[8477939,"William Nylander","TOR","C,RW","yahoo"],[8479772,"Zack MacEwen","TOR","RW","nhl"],[8475314,"Anders Lee","UTA","LW","yahoo"],[8479369,"Andrew Peeke","UTA","D","nhl"],[8480849,"Barrett Hayton","UTA","C","nhl"],[8479343,"Clayton Keller","UTA","LW,RW","yahoo"],[8484388,"Daniil But","UTA","LW","nhl"],[8484386,"Dmitri Simashev","UTA","D","nhl"],[8482699,"Dylan Guenther","UTA","LW,RW","yahoo"],[8480855,"Jack McBain","UTA","C","nhl"],[8478507,"John Marino","UTA","D","yahoo"],[8479977,"Kailer Yamamoto","UTA","RW","nhl"],[8478872,"Karel Vejmelka","UTA","G","yahoo"],[8478831,"Kevin Stenlund","UTA","C","nhl"],[8478474,"Lawson Crouse","UTA","LW,RW","yahoo"],[8477070,"Liam O'Brien","UTA","C","nhl"],[8483431,"Logan Cooley","UTA","C","yahoo"],[8477346,"MacKenzie Weegar","UTA","D","yahoo"],[8483472,"Maveric Lamoureux","UTA","D","nhl"],[8479619,"Michael Carcone","UTA","LW","nhl"],[8479410,"Mikhail Sergachev","UTA","D","yahoo"],[8477220,"Nate Schmidt","UTA","D","nhl"],[8480084,"Nick DeSimone","UTA","D","nhl"],[8477951,"Nick Schmaltz","UTA","C,RW","yahoo"],[8482657,"Sebastian Cossa","UTA","G","nhl"],[8476389,"Vincent Trocheck","UTA","C","yahoo"],[8482691,"Aatu Räty","VAN","C","nhl"],[8483395,"Arshdeep Bains","VAN","LW","nhl"],[8475848,"Brendan Gallagher","VAN","RW","nhl"],[8478444,"Brock Boeser","VAN","LW,RW","yahoo"],[8482055,"Drew O'Connor","VAN","LW","nhl"],[8480012,"Elias Pettersson","VAN","C","nhl"],[8483678,"Elias Pettersson","VAN","D","nhl"],[8480078,"Filip Chytil","VAN","C","nhl"],[8479425,"Filip Hronek","VAN","D","yahoo"],[8478465,"Guillaume Brisebois","VAN","D","nhl"],[8478498,"Jake DeBrusk","VAN","LW,RW","yahoo"],[8476467,"Jamie Oleksiak","VAN","D","nhl"],[8483476,"Jonathan Lekkerimäki","VAN","RW","nhl"],[8480947,"Kevin Lankinen","VAN","G","nhl"],[8482447,"Leevi Meriläinen","VAN","G","nhl"],[8483499,"Liam Ohgren","VAN","LW","nhl"],[8481024,"Linus Karlsson","VAN","C","nhl"],[8474568,"Luke Schenn","VAN","D","nhl"],[8482079,"Marco Rossi","VAN","C","yahoo"],[8484136,"Max Sasson","VAN","C","nhl"],[8481032,"Paul Cotter","VAN","LW","nhl"],[8477967,"Thatcher Demko","VAN","G","nhl"],[8484240,"Tom Willander","VAN","D","nhl"],[8483768,"Victor Mancini","VAN","D","nhl"],[8484798,"Zeev Buium","VAN","D","yahoo"],[8478499,"Adin Hill","VGK","G","yahoo"],[8483890,"Braeden Bowman","VGK","RW","nhl"],[8475188,"Brayden McNabb","VGK","D","nhl"],[8479353,"Brett Howden","VGK","C,LW","yahoo"],[8479394,"Carter Hart","VGK","G","yahoo"],[8479639,"Dylan Coghlan","VGK","D","nhl"],[8477964,"Ivan Barbashev","VGK","LW","yahoo"],[8478403,"Jack Eichel","VGK","C","yahoo"],[8478468,"Jeremy Lauzon","VGK","D","nhl"],[8483553,"Marc Gatcomb","VGK","C","nhl"],[8475913,"Mark Stone","VGK","RW","yahoo"],[8478483,"Mitch Marner","VGK","C,LW,RW","yahoo"],[8475343,"Nic Dowd","VGK","C","nhl"],[8478396,"Noah Hanifin","VGK","D","yahoo"],[8478450,"Parker Wotherspoon","VGK","D","nhl"],[8481534,"Raphael Lavoie","VGK","C","nhl"],[8478397,"Rasmus Andersson","VGK","D","yahoo"],[8477447,"Shea Theodore","VGK","D","yahoo"],[8476881,"Tomas Hertl","VGK","C,LW","yahoo"],[8484803,"Trevor Connelly","VGK","LW","nhl"],[8478109,"Victor Olofsson","VGK","LW","nhl"],[8476448,"William Karlsson","VGK","C","yahoo"],[8476392,"Adam Lowry","WPG","C","nhl"],[8480113,"Alex Iafallo","WPG","LW","nhl"],[8483471,"Brad Lambert","WPG","C","nhl"],[8483532,"Clay Stevenson","WPG","G","nhl"],[8481043,"Cole Koepke","WPG","LW","nhl"],[8482149,"Cole Perfetti","WPG","LW,RW","yahoo"],[8476945,"Connor Hellebuyck","WPG","G","yahoo"],[8476331,"Dylan DeMelo","WPG","D","nhl"],[8480049,"Dylan Samberg","WPG","D","nhl"],[8480014,"Gabriel Vilardi","WPG","C,RW","yahoo"],[8477938,"Haydn Fleury","WPG","D","nhl"],[8482765,"Isak Rosen","WPG","RW","nhl"],[8481030,"Jack St. Ivany","WPG","D","nhl"],[8477504,"Josh Morrissey","WPG","D","yahoo"],[8478398,"Kyle Connor","WPG","LW","yahoo"],[8479983,"Mario Ferraro","WPG","D","nhl"],[8476460,"Mark Scheifele","WPG","C","yahoo"],[8480289,"Morgan Barron","WPG","C","nhl"],[8480145,"Neal Pionk","WPG","D","yahoo"],[8475799,"Nino Niederreiter","WPG","RW","nhl"],[8479973,"Stuart Skinner","WPG","G","nhl"],[8482459,"Tyrel Bauer","WPG","D","nhl"],[8486025,"Viggo Björck","WPG","C","nhl"],[8476480,"Vladislav Namestnikov","WPG","C","nhl"],[8471214,"Alex Ovechkin","WSH","LW,RW","yahoo"],[8477949,"Alex Tuch","WSH","LW,RW","yahoo"],[8481656,"Aliaksei Protas","WSH","LW,RW","yahoo"],[8478463,"Anthony Beauvillier","WSH","RW","nhl"],[8476432,"Boone Jenner","WSH","C","nhl"],[8479292,"Charlie Lindgren","WSH","G","nhl"],[8484873,"Cole Hutson","WSH","D","yahoo"],[8475795,"Dylan McIlrath","WSH","D","nhl"],[8478440,"Dylan Strome","WSH","C","yahoo"],[8483573,"Ethen Frank","WSH","RW","nhl"],[8484999,"Ilya Protas","WSH","LW","yahoo"],[8483491,"Ivan Miroshnichenko","WSH","LW","nhl"],[8479345,"Jakob Chychrun","WSH","D","yahoo"],[8479385,"Jordan Kyrou","WSH","RW","yahoo"],[8482088,"Justin Sourdif","WSH","C","nhl"],[8480313,"Logan Thompson","WSH","G","yahoo"],[8480796,"Martin Fehérváry","WSH","D","nhl"],[8478911,"Matt Roy","WSH","D","nhl"],[8479400,"Pierre-Luc Dubois","WSH","C","nhl"],[8484186,"Ryan Leonard","WSH","RW","yahoo"],[8480043,"Timothy Liljegren","WSH","D","nhl"],[8476880,"Tom Wilson","WSH","RW","yahoo"],[8479576,"Vincent Desharnais","WSH","D","nhl"]];
-const DIR = DIR_RAW.map(([id,n,t,p,s])=>({id,name:n,team:t,pos:p.split(','),src:s}));
+const DIR_RAW = [[8478421,"A.J. Greer","ANA","LW","nhl",null],[8473986,"Alex Killorn","ANA","LW","nhl",null],[8484762,"Beckett Sennecke","ANA","RW","yahoo",3.15],[8483445,"Cutter Gauthier","ANA","C,LW,RW","yahoo",3.5],[8481563,"Drew Helleson","ANA","D","nhl",null],[8478366,"Frank Vatrano","ANA","RW","nhl",null],[8482178,"Ian Moore","ANA","D","nhl",null],[8481605,"Jackson LaCombe","ANA","D","yahoo",2.95],[8482408,"Jeff Malott","ANA","LW","nhl",null],[8481538,"Judd Caulfield","ANA","RW","nhl",null],[8484153,"Leo Carlsson","ANA","C","yahoo",3.43],[8480843,"Lukas Dostal","ANA","G","yahoo",2.81],[8475798,"Mikael Granlund","ANA","C,LW","yahoo",2.27],[8475324,"Nick Jensen","ANA","D","nhl",null],[8486052,"Nikita Klepov","ANA","RW","nhl",null],[8481754,"Nikita Nesterenko","ANA","C","nhl",null],[8483521,"Noah Warren","ANA","D","nhl",null],[8483490,"Pavel Mintyukov","ANA","D","nhl",null],[8480068,"Ryan Poehling","ANA","C","nhl",null],[8482118,"Sam Colangelo","ANA","RW","nhl",null],[8485512,"Tim Washe","ANA","C","nhl",null],[8484262,"Travis Mitchell","ANA","D","nhl",null],[8483482,"Tristan Luneau","ANA","D","nhl",null],[8482731,"Tyson Hinds","ANA","D","nhl",null],[8478024,"Ville Husso","ANA","G","nhl",null],[8479999,"Casey Mittelstadt","BOS","C","nhl",null],[8479325,"Charlie McAvoy","BOS","D","yahoo",2.73],[8477365,"Connor Clifton","BOS","D","nhl",null],[8477956,"David Pastrnak","BOS","RW","yahoo",4.78],[8477496,"Elias Lindholm","BOS","C","yahoo",2.26],[8483489,"Fraser Minten","BOS","C","nhl",null],[8483017,"Frederic Brunet","BOS","D","nhl",null],[8476854,"Hampus Lindholm","BOS","D","nhl",null],[8482175,"JJ Peterka","BOS","LW,RW","yahoo",2.34],[8485395,"James Hagens","BOS","C","yahoo",1.88],[8480280,"Jeremy Swayman","BOS","G","yahoo",3.29],[8481219,"Jonathan Aspirot","BOS","D","nhl",null],[8482177,"Marat Khusnutdinov","BOS","C","nhl",null],[8480355,"Mark Kastelic","BOS","C","nhl",null],[8482511,"Mason Lohrei","BOS","D","nhl",null],[8483505,"Matthew Poitras","BOS","C","nhl",null],[8480022,"Michael DiPietro","BOS","G","nhl",null],[8479987,"Morgan Geekie","BOS","C,LW,RW","yahoo",2.91],[8477507,"Nikita Zadorov","BOS","D","yahoo",2.73],[8478401,"Pavel Zacha","BOS","C,LW","yahoo",2.49],[8476374,"Sean Kuraly","BOS","C","nhl",null],[8479661,"Tanner Jeannot","BOS","LW","nhl",null],[8478840,"Will Borgen","BOS","D","nhl",null],[8479312,"Alex Lyon","BUF","G","yahoo",2.52],[8479359,"Beck Malenstyn","BUF","LW","nhl",null],[8481551,"Colten Ellis","BUF","G","nhl",null],[8479982,"Conor Timmins","BUF","D","nhl",null],[8478502,"Dennis Gilbert","BUF","D","nhl",null],[8482097,"Jack Quinn","BUF","RW","yahoo",2.1],[8483468,"Jiri Kulich","BUF","C","nhl",null],[8482659,"Josh Doan","BUF","RW","yahoo",2.56],[8480064,"Josh Norris","BUF","C","yahoo",2.14],[8479941,"Justin Danforth","BUF","RW","nhl",null],[8484797,"Konsta Helenius","BUF","C","yahoo",1.96],[8481806,"Louis Crevier","BUF","D","nhl",null],[8476891,"Matt Grzelcyk","BUF","D","nhl",null],[8480807,"Mattias Samuelsson","BUF","D","yahoo",2.57],[8483500,"Noah Ostlund","BUF","C","nhl",null],[8482803,"Olen Zellweger","BUF","D","yahoo",2.0],[8482671,"Owen Power","BUF","D","yahoo",1.46],[8481522,"Peyton Krebs","BUF","C","nhl",null],[8480839,"Rasmus Dahlin","BUF","D","yahoo",3.49],[8480802,"Ryan McLeod","BUF","C","nhl",null],[8475842,"Sam Carrick","BUF","C","nhl",null],[8479420,"Tage Thompson","BUF","C,RW","yahoo",3.7],[8482896,"Tyson Kozak","BUF","C","nhl",null],[8480045,"Ukko-Pekka Luukkonen","BUF","G","yahoo",2.8],[8484145,"Zach Benson","BUF","LW","yahoo",2.49],[8484305,"Zach Metsa","BUF","D","nhl",null],[null,"Alexander Nikishin","CAR","D","ranks",2.44],[8480830,"Andrei Svechnikov","CAR","LW,RW","yahoo",2.98],[8484203,"Bradly Nadeau","CAR","LW","nhl",null],[8483548,"Brandon Bussi","CAR","G","yahoo",3.35],[8480762,"Eric Robinson","CAR","LW","nhl",null],[8476958,"Jaccob Slavin","CAR","D","nhl",null],[8482809,"Jackson Blake","CAR","RW","yahoo",2.5],[8478970,"Jalen Chatfield","CAR","D","nhl",null],[8480829,"Jesperi Kotkaniemi","CAR","C","nhl",null],[8476921,"Jordan Martinook","CAR","LW","nhl",null],[8473533,"Jordan Staal","CAR","C","nhl",null],[8479976,"Juuso Välimäki","CAR","D","nhl",null],[8480817,"K'Andre Miller","CAR","D","yahoo",2.38],[8482702,"Logan Stankoven","CAR","C,RW","yahoo",2.48],[8476873,"Mark Jankowski","CAR","LW","nhl",null],[8476422,"Mike Reilly","CAR","D","nhl",null],[8475235,"Nicolas Deslauriers","CAR","LW","nhl",null],[8477940,"Nikolaj Ehlers","CAR","LW","yahoo",2.5],[8481611,"Pyotr Kochetkov","CAR","G","yahoo",2.18],[8480336,"Sean Walker","CAR","D","yahoo",2.3],[8478427,"Sebastian Aho","CAR","C","yahoo",3.06],[null,"Seth Jarvis","CAR","LW,RW","ranks",2.09],[8476906,"Shayne Gostisbehere","CAR","D","yahoo",2.42],[8475791,"Taylor Hall","CAR","LW","yahoo",2.28],[8477478,"William Carrier","CAR","LW","nhl",null],[8484166,"Adam Fantilli","CBJ","C","yahoo",3.35],[8475660,"Cam Talbot","CBJ","G","nhl",null],[8477369,"Carson Soucy","CBJ","D","nhl",null],[8475745,"Charlie Coyle","CBJ","C","yahoo",2.29],[8482705,"Cole Sillinger","CBJ","C","nhl",null],[8478856,"Conor Garland","CBJ","RW","nhl",null],[8479371,"Dante Fabbro","CBJ","D","nhl",null],[8478046,"Danton Heinen","CBJ","LW","nhl",null],[8483485,"Denton Mateychuk","CBJ","D","yahoo",1.95],[8481716,"Dmitri Voronkov","CBJ","LW","nhl",null],[8482126,"Emil Andrae","CBJ","D","nhl",null],[8475790,"Erik Gudbranson","CBJ","D","nhl",null],[8478500,"Ivan Provorov","CBJ","D","yahoo",1.52],[8481161,"Jake Christiansen","CBJ","D","nhl",null],[8482982,"Jet Greaves","CBJ","G","yahoo",2.61],[8482660,"Kent Johnson","CBJ","C","nhl",null],[8483432,"Luca Del Bel Belluz","CBJ","C","nhl",null],[8479671,"Mathieu Olivier","CBJ","RW","nhl",null],[8482720,"Matthew Knies","CBJ","LW,RW","yahoo",3.22],[8479066,"Ryan Lomberg","CBJ","LW","nhl",null],[8477497,"Sean Monahan","CBJ","C","nhl",null],[8477501,"Valeri Nichushkin","CBJ","LW,RW","yahoo",2.39],[8478460,"Zach Werenski","CBJ","D","yahoo",4.03],[8483609,"Adam Klapka","CGY","RW","nhl",null],[8484234,"Aydar Suniev","CGY","LW","nhl",null],[8482747,"Brennan Othmann","CGY","LW","nhl",null],[8482445,"Devin Cooley","CGY","G","nhl",null],[8481692,"Dustin Wolf","CGY","G","yahoo",2.33],[8478136,"Jake Middleton","CGY","D","nhl",null],[8480797,"Joel Farabee","CGY","LW","nhl",null],[8477810,"Joel Hanley","CGY","D","nhl",null],[8484154,"Jonathan Castagna","CGY","C","nhl",null],[8476456,"Jonathan Huberdeau","CGY","LW","nhl",null],[8480860,"Kevin Bahl","CGY","D","nhl",null],[8481028,"Martin Pospisil","CGY","C","nhl",null],[8482679,"Matt Coronato","CGY","RW","yahoo",2.04],[8484860,"Matvei Gridin","CGY","LW,RW","yahoo",2.0],[8484958,"Maxim Tsyplakov","CGY","RW","nhl",null],[8474150,"Mikael Backlund","CGY","C","nhl",null],[8480028,"Morgan Frost","CGY","C","nhl",null],[8476458,"Ryan Strome","CGY","C","nhl",null],[8484180,"Samuel Honzek","CGY","LW","nhl",null],[8483495,"Simon Nemec","CGY","D","yahoo",2.3],[8482165,"Yan Kuznetsov","CGY","D","nhl",null],[8481068,"Yegor Sharangovich","CGY","C","nhl",null],[8480727,"Zach Whitecloud","CGY","D","nhl",null],[8484768,"Zayne Parekh","CGY","D","yahoo",2.02],[8481568,"Alex Vlasic","CHI","D","nhl",null],[8478233,"Andrew Mangiapane","CHI","LW","nhl",null],[8485391,"Anton Frondell","CHI","C","yahoo",2.42],[8484783,"Artyom Levshunov","CHI","D","yahoo",2.58],[8482821,"Arvid Soderblom","CHI","G","nhl",null],[8481524,"Bowen Byram","CHI","D","yahoo",2.53],[8482062,"Cole Smith","CHI","RW","nhl",null],[8484144,"Connor Bedard","CHI","C,RW","yahoo",3.13],[8476952,"Dominic Toninato","CHI","C","nhl",null],[8482807,"Ethan Del Mastro","CHI","D","nhl",null],[8483493,"Frank Nazar","CHI","C","yahoo",2.39],[8474013,"Ian Cole","CHI","D","nhl",null],[8478413,"Jordan Greenway","CHI","LW","nhl",null],[8483466,"Kevin Korchinski","CHI","D","nhl",null],[8484197,"Oliver Moore","CHI","C","nhl",null],[8474141,"Patrick Kane","CHI","RW","yahoo",2.28],[8484390,"Roman Kantserov","CHI","RW","nhl",null],[8477987,"Ryan Donato","CHI","C,LW,RW","yahoo",2.2],[8483450,"Ryan Greene","CHI","C","nhl",null],[8483506,"Sam Rinzel","CHI","D","yahoo",2.22],[8481519,"Spencer Knight","CHI","G","yahoo",2.71],[8476882,"Teuvo Teravainen","CHI","C","nhl",null],[8477479,"Tyler Bertuzzi","CHI","LW,RW","yahoo",2.26],[8482176,"Wyatt Kaiser","CHI","D","nhl",null],[8477476,"Artturi Lehkonen","COL","LW,RW","yahoo",2.13],[8470613,"Brent Burns","COL","D","yahoo",1.68],[8476967,"Brett Kulak","COL","D","nhl",null],[8475754,"Brock Nelson","COL","C","yahoo",2.64],[8480069,"Cale Makar","COL","D","yahoo",4.63],[8478038,"Devon Toews","COL","D","yahoo",1.81],[8482768,"Fedor Svechkov","COL","C","nhl",null],[8476455,"Gabriel Landeskog","COL","LW,RW","yahoo",2.35],[8484149,"Gavin Brindley","COL","C","nhl",null],[8475768,"Jaden Schwartz","COL","LW","nhl",null],[8476312,"Josh Manson","COL","D","nhl",null],[8481186,"Logan O'Connor","COL","RW","nhl",null],[8478406,"Mackenzie Blackwood","COL","G","yahoo",3.0],[8480039,"Martin Necas","COL","RW","yahoo",4.18],[8477492,"Nathan MacKinnon","COL","C","yahoo",5.39],[8475172,"Nazem Kadri","COL","C,LW","yahoo",2.52],[8478462,"Nicolas Roy","COL","C","nhl",null],[8478454,"Noah Juulsen","COL","D","nhl",null],[8480448,"Parker Kelly","COL","C","nhl",null],[8484258,"Sam Malinski","COL","D","yahoo",1.95],[8475809,"Scott Wedgewood","COL","G","yahoo",3.4],[8486171,"T.J. Hughes","COL","RW","nhl",null],[8482742,"Zachary L'Heureux","COL","LW","nhl",null],[8484938,"Arttu Hyry","DAL","RW","nhl",null],[8479193,"Casey DeSmith","DAL","G","nhl",null],[8476278,"Colin Blackwell","DAL","C","nhl",null],[8476902,"Esa Lindell","DAL","D","yahoo",1.59],[8479979,"Jake Oettinger","DAL","G","yahoo",4.39],[8473994,"Jamie Benn","DAL","LW","nhl",null],[8480027,"Jason Robertson","DAL","LW,RW","yahoo",4.32],[8481641,"Joel Kiviranta","DAL","LW","nhl",null],[8484829,"Justin Hryckowian","DAL","C","nhl",null],[8477335,"Kyle Burroughs","DAL","D","nhl",null],[8478476,"Kyle Capobianco","DAL","D","nhl",null],[8483425,"Lian Bichsel","DAL","D","nhl",null],[8475168,"Matt Duchene","DAL","C,RW","yahoo",2.49],[8478420,"Mikko Rantanen","DAL","LW,RW","yahoo",3.96],[8480036,"Miro Heiskanen","DAL","D","yahoo",2.8],[8480878,"Nils Lundkvist","DAL","D","nhl",null],[8480840,"Oskar Bäck","DAL","C","nhl",null],[8476889,"Radek Faksa","DAL","C","nhl",null],[8478449,"Roope Hintz","DAL","C","yahoo",2.81],[8479351,"Sam Steel","DAL","C","nhl",null],[8481581,"Thomas Harley","DAL","D","yahoo",2.46],[8474574,"Tyler Myers","DAL","D","nhl",null],[8475794,"Tyler Seguin","DAL","C","nhl",null],[8482740,"Wyatt Johnston","DAL","C,RW","yahoo",4.16],[8481607,"Albert Johansson","DET","D","nhl",null],[8479337,"Alex DeBrincat","DET","LW,RW","yahoo",3.21],[8477971,"Andreas Englund","DET","D","nhl",null],[8477429,"Andrew Copp","DET","C","nhl",null],[8483679,"Anton Johansson","DET","D","nhl",null],[8484223,"Axel Sandin-Pellikka","DET","D","nhl",null],[8475279,"Ben Chiarot","DET","D","nhl",null],[8482802,"Carter Mazur","DET","LW","nhl",null],[8480193,"Daniil Tarasov","DET","G","nhl",null],[8477946,"Dylan Larkin","DET","C","yahoo",3.03],[8484471,"Emmitt Finnie","DET","C","nhl",null],[8477456,"J.T. Compher","DET","LW","nhl",null],[8480879,"Jacob Bernard-Docker","DET","D","nhl",null],[8476434,"John Gibson","DET","G","yahoo",2.5],[8475753,"Justin Faulk","DET","D","yahoo",2.35],[8478434,"Keegan Kolesar","DET","RW","nhl",null],[8482078,"Lucas Raymond","DET","RW","yahoo",3.07],[8483464,"Marco Kasper","DET","C","nhl",null],[8478891,"Mason Appleton","DET","C","nhl",null],[8484794,"Michael Brandsegg-Nygård","DET","RW","nhl",null],[8479992,"Michael Rasmussen","DET","C","nhl",null],[8481542,"Moritz Seider","DET","D","yahoo",3.23],[8484160,"Nate Danielson","DET","C","nhl",null],[8480326,"Sheldon Dries","DET","C","nhl",null],[null,"Simon Edvinsson","DET","D","ranks",2.42],[8478042,"Viktor Arvidsson","DET","LW,RW","yahoo",2.1],[8482171,"William Wallinder","DET","D","nhl",null],[8480831,"Alec Regula","EDM","D","nhl",null],[8480029,"Alex Formenton","EDM","LW","nhl",null],[8482703,"Colton Dach","EDM","C","nhl",null],[8478402,"Connor McDavid","EDM","C","yahoo",6.0],[8476473,"Connor Murphy","EDM","D","nhl",null],[8482221,"Devon Levi","EDM","G","nhl",null],[8480803,"Evan Bouchard","EDM","D","yahoo",3.93],[8480842,"Filip Hallander","EDM","C","nhl",null],[8475883,"Frederik Andersen","EDM","G","yahoo",2.96],[8483455,"Isaac Howard","EDM","LW","nhl",null],[8478013,"Jake Walman","EDM","D","yahoo",1.38],[8477450,"Jason Dickinson","EDM","C","nhl",null],[8484509,"Josh Samanski","EDM","C","nhl",null],[8477953,"Kasperi Kapanen","EDM","RW","nhl",null],[8477934,"Leon Draisaitl","EDM","C,LW","yahoo",4.83],[8478472,"Mathieu Joseph","EDM","RW","nhl",null],[8483512,"Matt Savoie","EDM","C,RW","yahoo",2.13],[8475218,"Mattias Ekholm","EDM","D","yahoo",2.04],[8477406,"Mattias Janmark","EDM","C","nhl",null],[8479368,"Max Jones","EDM","LW","nhl",null],[8486161,"Owen Michaels","EDM","RW","nhl",null],[8476454,"Ryan Nugent-Hopkins","EDM","C,LW","yahoo",2.34],[8478854,"Ryan Shea","EDM","D","nhl",null],[8482166,"Shakir Mukhamadullin","EDM","D","nhl",null],[8479365,"Trent Frederic","EDM","C","nhl",null],[8477465,"Tristan Jarry","EDM","G","yahoo",2.54],[8480834,"Ty Emberson","EDM","D","nhl",null],[8481617,"Vasily Podkolzin","EDM","RW","nhl",null],[8475786,"Zach Hyman","EDM","LW,RW","yahoo",2.76],[8477932,"Aaron Ekblad","FLA","D","yahoo",2.14],[8481033,"Akira Schmid","FLA","G","nhl",null],[8477493,"Aleksander Barkov","FLA","C","nhl",null],[8482113,"Anton Lundell","FLA","C","yahoo",2.36],[8478147,"Bokondji Imama","FLA","LW","nhl",null],[8473419,"Brad Marchand","FLA","LW,RW","yahoo",2.62],[8480801,"Brady Tkachuk","FLA","C,LW","yahoo",4.02],[8477409,"Carter Verhaeghe","FLA","LW","yahoo",2.51],[8484900,"Cooper Black","FLA","G","nhl",null],[8475179,"Dmitry Kulikov","FLA","D","nhl",null],[8480185,"Eetu Luostarinen","FLA","C","nhl",null],[8477903,"Garnet Hathaway","FLA","RW","nhl",null],[8478055,"Gustav Forsling","FLA","D","nhl",null],[8474593,"Jacob Markstrom","FLA","G","yahoo",3.93],[8479981,"Jonah Gadjovich","FLA","LW","nhl",null],[8474189,"Lars Eller","FLA","C","nhl",null],[8479314,"Matthew Tkachuk","FLA","LW,RW","yahoo",3.56],[8478859,"Niko Mikkola","FLA","D","nhl",null],[8475462,"Radko Gudas","FLA","D","nhl",null],[8477935,"Sam Bennett","FLA","C","yahoo",3.09],[8478043,"Sam Lafferty","FLA","C","nhl",null],[8477933,"Sam Reinhart","FLA","RW","yahoo",3.58],[8483771,"Sandis Vilmanis","FLA","LW","nhl",null],[8477495,"Seth Jones","FLA","D","yahoo",2.33],[8484304,"Uvis Balinskis","FLA","D","nhl",null],[8477960,"Adrian Kempe","LAK","RW","yahoo",3.58],[8482155,"Alex Laferriere","LAK","C,LW,RW","yahoo",2.5],[8481532,"Alex Turcotte","LAK","C","nhl",null],[8481732,"Andre Lee","LAK","LW","nhl",null],[8476341,"Anton Forsberg","LAK","G","nhl",null],[8478550,"Artemi Panarin","LAK","LW","yahoo",3.17],[8482730,"Brandt Clarke","LAK","D","yahoo",2.54],[8475208,"Brian Dumoulin","LAK","D","nhl",null],[8476879,"Cody Ceci","LAK","D","nhl",null],[8470621,"Corey Perry","LAK","RW","nhl",null],[8475311,"Darcy Kuemper","LAK","G","yahoo",2.78],[8474563,"Drew Doughty","LAK","D","nhl",null],[8476979,"Erik Gustafsson","LAK","D","nhl",null],[8475287,"Erik Haula","LAK","LW","nhl",null],[8476469,"Joel Armia","LAK","RW","nhl",null],[8476441,"Joel Edmundson","LAK","D","nhl",null],[8477942,"Kevin Fiala","LAK","LW","yahoo",1.88],[8475692,"Mats Zuccarello","LAK","RW","yahoo",2.28],[8479998,"Mikey Anderson","LAK","D","nhl",null],[8482124,"Quinton Byfield","LAK","C","yahoo",2.81],[8482726,"Samuel Helenius","LAK","C","nhl",null],[8476872,"Scott Laughton","LAK","C","nhl",null],[8479675,"Trevor Moore","LAK","LW","nhl",null],[8476399,"Blake Coleman","MIN","C,LW","yahoo",2.58],[8481553,"Bobby Brink","MIN","RW","nhl",null],[8482122,"Brock Faber","MIN","D","yahoo",2.77],[8475717,"Calvin Pickard","MIN","G","nhl",null],[8482094,"Daemon Hunt","MIN","D","nhl",null],[8483525,"Danila Yurov","MIN","RW","nhl",null],[8483766,"David Spacek","MIN","D","nhl",null],[8479406,"Filip Gustavsson","MIN","G","yahoo",2.08],[8474716,"Jared Spurgeon","MIN","D","nhl",null],[8482661,"Jesper Wallstedt","MIN","G","yahoo",3.43],[8478493,"Joel Eriksson Ek","MIN","C","yahoo",2.69],[8476463,"Jonas Brodin","MIN","D","nhl",null],[8477993,"Justin Kirkland","MIN","C","nhl",null],[8478864,"Kirill Kaprizov","MIN","LW","yahoo",4.44],[8475220,"Marcus Foligno","MIN","LW","nhl",null],[8481557,"Matt Boldy","MIN","LW,RW","yahoo",3.88],[8482641,"Matt Kiersted","MIN","D","nhl",null],[8485702,"Maxim Shabanov","MIN","RW","nhl",null],[8477446,"Michael McCarron","MIN","C","nhl",null],[8473422,"Nick Foligno","MIN","LW","nhl",null],[8481477,"Nico Sturm","MIN","C","nhl",null],[8476874,"Olli Maatta","MIN","D","nhl",null],[8480800,"Quinn Hughes","MIN","D","yahoo",4.19],[8483478,"Rieger Lorenz","MIN","LW","nhl",null],[8477451,"Ryan Hartman","MIN","C,RW","yahoo",2.37],[8475752,"Tyler Pitlick","MIN","C","nhl",null],[8478508,"Yakov Trenin","MIN","C","nhl",null],[8474567,"Zach Bogosian","MIN","D","nhl",null],[8483686,"Adam Engstrom","MTL","D","nhl",null],[8481618,"Alex Newhook","MTL","C","nhl",null],[8478851,"Alexandre Carrier","MTL","D","nhl",null],[8480074,"Alexandre Texier","MTL","LW","nhl",null],[8482964,"Arber Xhekaj","MTL","D","nhl",null],[8475184,"Chris Kreider","MTL","LW","yahoo",2.21],[8481540,"Cole Caufield","MTL","LW,RW","yahoo",3.8],[8484220,"David Reinbacher","MTL","D","yahoo",1.86],[8484403,"Florian Xhekaj","MTL","LW","nhl",null],[8484984,"Ivan Demidov","MTL","RW","yahoo",2.99],[8484170,"Jacob Fowler","MTL","G","yahoo",2.51],[8478133,"Jake Evans","MTL","C","nhl",null],[8482487,"Jakub Dobes","MTL","G","yahoo",3.26],[8476981,"Josh Anderson","MTL","RW","nhl",null],[8483515,"Juraj Slafkovský","MTL","LW,RW","yahoo",3.49],[8482087,"Kaiden Guhle","MTL","D","nhl",null],[8481523,"Kirby Dach","MTL","C","nhl",null],[8483457,"Lane Hutson","MTL","D","yahoo",4.01],[8476875,"Mike Matheson","MTL","D","yahoo",2.27],[8480018,"Nick Suzuki","MTL","C","yahoo",4.25],[8480865,"Noah Dobson","MTL","D","yahoo",2.61],[8482775,"Oliver Kapanen","MTL","C","nhl",null],[8483424,"Owen Beck","MTL","C","nhl",null],[8476479,"Phillip Danault","MTL","C","nhl",null],[8478470,"Samuel Montembeault","MTL","G","nhl",null],[8482737,"Zachary Bolduc","MTL","RW","nhl",null],[8483695,"Amadeus Lombardi","NJD","C","nhl",null],[8477511,"Anthony Mantha","NJD","LW,RW","yahoo",2.39],[8481721,"Arseny Gritsyuk","NJD","RW","nhl",null],[8475455,"Brenden Dillon","NJD","D","nhl",null],[8477488,"Brett Pesce","NJD","D","nhl",null],[8479996,"Cody Glass","NJD","C","nhl",null],[8477015,"Connor Brown","NJD","RW","nhl",null],[8482110,"Dawson Mercer","NJD","C","nhl",null],[8480990,"Declan Chisholm","NJD","D","nhl",null],[8476462,"Dougie Hamilton","NJD","D","yahoo",2.48],[8478542,"Evan Rodrigues","NJD","C","nhl",null],[8481559,"Jack Hughes","NJD","C,LW","yahoo",3.81],[8474596,"Jake Allen","NJD","G","yahoo",2.41],[8480003,"Jesper Boqvist","NJD","C","nhl",null],[8479407,"Jesper Bratt","NJD","LW,RW","yahoo",3.1],[8480192,"Johnathan Kovacevic","NJD","D","nhl",null],[8478399,"Jonas Siegenthaler","NJD","D","nhl",null],[8482146,"Luke Evangelista","NJD","LW,RW","yahoo",2.07],[8482684,"Luke Hughes","NJD","D","yahoo",2.12],[8482076,"Nico Daws","NJD","G","nhl",null],[8480002,"Nico Hischier","NJD","C","yahoo",2.74],[8482465,"Rémi Poirier","NJD","G","nhl",null],[8476474,"Stefan Noesen","NJD","RW","nhl",null],[8478414,"Timo Meier","NJD","LW,RW","yahoo",2.9],[8481726,"Adam Edstrom","NSH","C","nhl",null],[8482482,"Adam Wilsby","NSH","D","nhl",null],[8477021,"Alexander Kerfoot","NSH","C","nhl",null],[8476869,"Brady Skjei","NSH","D","nhl",null],[8476887,"Filip Forsberg","NSH","LW","yahoo",3.28],[8480950,"Ilya Lyubushkin","NSH","D","nhl",null],[8482072,"Jack Ahcan","NSH","D","nhl",null],[8480835,"Jack Drury","NSH","C","nhl",null],[8481593,"Jayden Struble","NSH","D","nhl",null],[8476539,"Jonathan Marchessault","NSH","C","nhl",null],[8481020,"Justus Annunen","NSH","G","nhl",null],[8477424,"Juuse Saros","NSH","G","yahoo",2.82],[8483575,"Matt Murray","NSH","G","nhl",null],[8484241,"Matthew Wood","NSH","RW","nhl",null],[8482145,"Mavrik Bourque","NSH","C,RW","yahoo",2.2],[8480246,"Nick Perbix","NSH","D","nhl",null],[8479980,"Nicolas Hague","NSH","D","yahoo",1.54],[8481535,"Nils Hoglander","NSH","LW","nhl",null],[8483513,"Reid Schaefer","NSH","LW","nhl",null],[8474600,"Roman Josi","NSH","D","yahoo",2.75],[8479525,"Ross Colton","NSH","C","nhl",null],[8475158,"Ryan O'Reilly","NSH","C","yahoo",2.65],[8474564,"Steven Stamkos","NSH","C,RW","yahoo",3.0],[8486189,"Vitali Pinchuk","NSH","C","nhl",null],[8482806,"William Trudeau","NSH","D","nhl",null],[8476917,"Adam Pelech","NYI","D","nhl",null],[8481014,"Alexander Romanov","NYI","D","nhl",null],[8477407,"Anthony Duclair","NYI","LW","nhl",null],[8477500,"Bo Horvat","NYI","C","yahoo",2.84],[8475170,"Brayden Schenn","NYI","C,LW","yahoo",2.63],[8484221,"Calum Ritchie","NYI","C","nhl",null],[8475231,"Casey Cizikas","NYI","C","nhl",null],[8482476,"Emil Heineman","NYI","LW","nhl",null],[8478009,"Ilya Sorokin","NYI","G","yahoo",3.87],[8476419,"Jean-Gabriel Pageau","NYI","C","nhl",null],[8481237,"Kyle MacLean","NYI","C","nhl",null],[8475151,"Kyle Palmieri","NYI","C","nhl",null],[8479378,"Logan Stanley","NYI","D","nhl",null],[null,"Mathew Barzal","NYI","C,RW","ranks",2.69],[8481711,"Matias Maccelli","NYI","LW","nhl",null],[8482516,"Matthew Kessel","NYI","D","nhl",null],[8485366,"Matthew Schaefer","NYI","D","yahoo",3.29],[8476292,"Ondrej Palat","NYI","LW","nhl",null],[8477506,"Ryan Pulock","NYI","D","nhl",null],[8476429,"Scott Mayfield","NYI","D","nhl",null],[8473575,"Semyon Varlamov","NYI","G","nhl",null],[8481601,"Simon Holmstrom","NYI","RW","nhl",null],[8477950,"Tony DeAngelo","NYI","D","nhl",null],[8485388,"Victor Eklund","NYI","RW","yahoo",2.08],[8479323,"Adam Fox","NYR","D","yahoo",3.02],[8483669,"Adam Sykora","NYR","LW","nhl",null],[8485957,"Alberts Smits","NYR","D","nhl",null],[8482109,"Alexis Lafrenière","NYR","LW,RW","yahoo",2.77],[8482073,"Braden Schneider","NYR","D","nhl",null],[8482193,"Dylan Garand","NYR","G","nhl",null],[8480009,"Eeli Tolvanen","NYR","RW","nhl",null],[8484210,"Gabe Perreault","NYR","RW","yahoo",2.35],[8478048,"Igor Shesterkin","NYR","G","yahoo",3.76],[8476468,"J.T. Miller","NYR","C,LW,RW","yahoo",3.2],[8482877,"Jaroslav Chmelar","NYR","RW","nhl",null],[8476914,"Joonas Korpisalo","NYR","G","nhl",null],[8480813,"Joseph Veleno","NYR","C","nhl",null],[8475413,"Justin Dowling","NYR","C","nhl",null],[8477969,"Marcus Pettersson","NYR","D","nhl",null],[8482460,"Matt Rempe","NYR","C","nhl",null],[8476459,"Mika Zibanejad","NYR","C,RW","yahoo",3.07],[8483690,"Noah Laba","NYR","C","nhl",null],[8477416,"Oliver Bjorkstrand","NYR","RW","nhl",null],[8481604,"Pavel Dorofeyev","NYR","LW,RW","yahoo",2.87],[8482666,"Scott Morrow","NYR","D","nhl",null],[8480434,"Sean Durzi","NYR","D","yahoo",2.28],[8477484,"Spencer Martin","NYR","G","nhl",null],[8481789,"Tye Kartye","NYR","LW","nhl",null],[8478882,"Vladislav Gavrikov","NYR","D","yahoo",1.71],[8482157,"Will Cuylle","NYR","LW,RW","yahoo",2.8],[8477444,"Andre Burakovsky","OTT","LW","nhl",null],[8480075,"Cameron Crotty","OTT","D","nhl",null],[8484759,"Carter Yakemchuk","OTT","D","yahoo",1.95],[8473512,"Claude Giroux","OTT","RW","nhl",null],[8480208,"Drake Batherson","OTT","LW,RW","yahoo",3.2],[8481528,"Dylan Cozens","OTT","C","yahoo",2.92],[8480188,"Fabian Zetterlund","OTT","LW","nhl",null],[8478173,"Hayden Hodgson","OTT","RW","nhl",null],[8482105,"Jake Sanderson","OTT","D","yahoo",2.96],[8481606,"Jordan Spence","OTT","D","nhl",null],[8476999,"Linus Ullmark","OTT","G","yahoo",3.02],[8478020,"Michael Amadio","OTT","RW","nhl",null],[8476393,"Nick Cousins","OTT","C","nhl",null],[8484321,"Nikolas Matinpalo","OTT","D","nhl",null],[8482092,"Ridly Greig","OTT","C","nhl",null],[8481035,"Samuel Ersson","OTT","G","nhl",null],[8481596,"Shane Pinto","OTT","C","yahoo",2.3],[8483676,"Stephen Halliday","OTT","C","nhl",null],[8478469,"Thomas Chabot","OTT","D","yahoo",2.23],[8482116,"Tim Stützle","OTT","C,LW","yahoo",3.61],[8482095,"Tyler Kleven","OTT","D","nhl",null],[8477998,"Warren Foegele","OTT","LW","nhl",null],[8482667,"William Eklund","OTT","LW,RW","yahoo",2.6],[8481546,"Cam York","PHI","D","nhl",null],[8477989,"Christian Dvorak","PHI","C","nhl",null],[8478435,"Dan Vladar","PHI","G","yahoo",2.67],[8483460,"David Jiricek","PHI","D","nhl",null],[8484142,"Denver Barkey","PHI","C","nhl",null],[8475253,"Garrett Wilson","PHI","LW","nhl",null],[8482169,"Helge Grans","PHI","D","nhl",null],[8480021,"Jack Studnicka","PHI","C","nhl",null],[8482142,"Jamie Drysdale","PHI","D","nhl",null],[8479361,"Joseph Woll","PHI","G","yahoo",2.36],[8484387,"Matvei Michkov","PHI","LW,RW","yahoo",2.32],[8478047,"Michael Bunting","PHI","LW","nhl",null],[8476372,"Nick Seeler","PHI","D","nhl",null],[8483733,"Nikita Grebenkin","PHI","RW","nhl",null],[8480220,"Noah Cates","PHI","LW","nhl",null],[8478569,"Noel Acciari","PHI","C","nhl",null],[8484148,"Oliver Bonk","PHI","D","nhl",null],[8480015,"Owen Tippett","PHI","RW","nhl",null],[8485406,"Porter Martone","PHI","RW","yahoo",2.64],[8477499,"Rasmus Ristolainen","PHI","D","nhl",null],[8476461,"Sean Couturier","PHI","C","nhl",null],[8481122,"Simon Benoit","PHI","D","nhl",null],[8478439,"Travis Konecny","PHI","LW,RW","yahoo",2.86],[8477948,"Travis Sanheim","PHI","D","yahoo",2.15],[8481533,"Trevor Zegras","PHI","C,LW,RW","yahoo",2.75],[8482159,"Tyson Foerster","PHI","LW,RW","yahoo",2.1],[8483808,"Andrei Kuzmenko","PIT","LW","nhl",null],[8481668,"Arturs Silovs","PIT","G","yahoo",2.63],[8485414,"Ben Kindel","PIT","C","nhl",null],[8481481,"Blake Lizotte","PIT","C","nhl",null],[8475810,"Bryan Rust","PIT","RW","yahoo",2.78],[8480980,"Connor Dewar","PIT","C","nhl",null],[8483398,"Declan Carlile","PIT","D","nhl",null],[8482475,"Egor Chinakhov","PIT","LW,RW","yahoo",2.39],[8481725,"Elmer Soderblom","PIT","LW","nhl",null],[8474578,"Erik Karlsson","PIT","D","yahoo",2.7],[8471215,"Evgeni Malkin","PIT","C,LW,RW","yahoo",2.55],[8482148,"Hendrix Lapierre","PIT","C","nhl",null],[8479638,"Justin Brazeau","PIT","RW","nhl",null],[8481527,"Kaedan Korczak","PIT","D","nhl",null],[8471724,"Kris Letang","PIT","D","yahoo",1.79],[8481582,"Nick Robertson","PIT","LW","nhl",null],[8476483,"Rickard Rakell","PIT","C,LW,RW","yahoo",2.69],[8481564,"Ryan Johnson","PIT","D","nhl",null],[8479398,"Samuel Girard","PIT","D","nhl",null],[8483703,"Sergei Murashov","PIT","G","yahoo",2.33],[8471675,"Sidney Crosby","PIT","C","yahoo",3.38],[8481056,"Spencer Stastney","PIT","D","nhl",null],[8478438,"Tommy Novak","PIT","C","nhl",null],[8477845,"Trevor van Riemsdyk","PIT","D","nhl",null],[8482758,"Ville Koivunen","PIT","RW","nhl",null],[8476457,"Adam Larsson","SEA","D","nhl",null],[8483570,"Ben Meyers","SEA","C","nhl",null],[8484800,"Berkly Catton","SEA","C","nhl",null],[8482259,"Bobby McMann","SEA","LW,RW","yahoo",2.46],[8477986,"Brandon Montour","SEA","D","yahoo",2.49],[8479985,"Cale Fleury","SEA","D","nhl",null],[8476905,"Chandler Stephenson","SEA","C","nhl",null],[8480876,"Curtis Douglas","SEA","C","nhl",null],[8477919,"Frederick Gaudreau","SEA","C","nhl",null],[8482874,"Jacob Melanson","SEA","RW","nhl",null],[8485383,"Jake O'Brien","SEA","C","nhl",null],[8477955,"Jared McCann","SEA","C,LW","yahoo",2.0],[8478916,"Joey Daccord","SEA","G","yahoo",2.34],[8474586,"Jordan Eberle","SEA","RW","yahoo",2.05],[8479372,"Josh Mahura","SEA","D","nhl",null],[8481554,"Kaapo Kakko","SEA","RW","nhl",null],[8482713,"Mackie Samoskevich","SEA","RW","nhl",null],[8482665,"Matty Beniers","SEA","C","yahoo",2.09],[8475831,"Philipp Grubauer","SEA","G","nhl",null],[8479324,"Ryan Lindgren","SEA","D","nhl",null],[8482751,"Ryan Winterton","SEA","C","nhl",null],[8482858,"Ryker Evans","SEA","D","nhl",null],[8483524,"Shane Wright","SEA","C","nhl",null],[8482866,"Ville Ottavainen","SEA","D","nhl",null],[8478407,"Vince Dunn","SEA","D","yahoo",2.39],[8478874,"Adam Gaudette","SJ","RW","nhl",null],[8479718,"Alex Barré-Boulet","SJ","C","nhl",null],[8477968,"Alex Nedeljkovic","SJ","G","nhl",null],[8477505,"Alexander Wennberg","SJ","C","nhl",null],[8476624,"Barclay Goodrow","SJ","C","nhl",null],[8484911,"Collin Graf","SJ","LW,RW","yahoo",2.33],[8477498,"Darnell Nurse","SJ","D","yahoo",2.64],[8475200,"Dmitry Orlov","SJ","D","nhl",null],[8484994,"Igor Chernyshov","SJ","LW,RW","yahoo",2.15],[8486103,"Ivar Stenberg","SJ","LW","nhl",null],[8476885,"Jacob Trouba","SJ","D","yahoo",2.45],[8480748,"Kiefer Sherwood","SJ","LW,RW","yahoo",2.93],[8484152,"Luca Cagnoni","SJ","D","nhl",null],[8484801,"Macklin Celebrini","SJ","C","yahoo",5.09],[8478975,"Mason Marchment","SJ","LW","yahoo",2.56],[8480891,"Michael Kesselring","SJ","D","nhl",null],[8485402,"Michael Misa","SJ","C","yahoo",2.25],[8482700,"Nolan Allan","SJ","D","nhl",null],[8484806,"Sam Dickinson","SJ","D","nhl",null],[8480848,"Ty Dellandrea","SJ","C","nhl",null],[8475726,"Tyler Toffoli","SJ","LW,RW","yahoo",1.98],[8484227,"Will Smith","SJ","LW,RW","yahoo",2.97],[8482137,"Yaroslav Askarov","SJ","G","yahoo",2.82],[8482859,"Zack Ostapchuk","SJ","C","nhl",null],[8484790,"Adam Jiricek","STL","D","nhl",null],[8480281,"Alexey Toropchenko","STL","RW","nhl",null],[8478443,"Brandon Carlo","STL","D","nhl",null],[8475764,"Cam Fowler","STL","D","nhl",null],[8476892,"Colton Parayko","STL","D","yahoo",2.3],[8481580,"Connor McMichael","STL","C,LW","yahoo",2.16],[8484164,"Dalibor Dvorsky","STL","RW","nhl",null],[8479346,"Dillon Dube","STL","C","nhl",null],[8482077,"Dylan Holloway","STL","C,LW","yahoo",2.97],[8482121,"Dylan Peterson","STL","C","nhl",null],[8482089,"Jake Neighbours","STL","LW,RW","yahoo",2.36],[8483516,"Jimmy Snuggerud","STL","RW","yahoo",2.54],[8480981,"Joel Hofer","STL","G","yahoo",2.69],[8481013,"Jonatan Berggren","STL","RW","nhl",null],[8476412,"Jordan Binnington","STL","G","yahoo",2.77],[8482111,"Justin Barron","STL","D","nhl",null],[8482733,"Logan Mailloux","STL","D","yahoo",2.27],[8482745,"Mason McTavish","STL","C","yahoo",2.48],[8477402,"Pavel Buchnevich","STL","LW","nhl",null],[8481598,"Philip Broberg","STL","D","yahoo",2.29],[8480459,"Pius Suter","STL","C","nhl",null],[8480023,"Robert Thomas","STL","C","yahoo",3.19],[8477527,"Ross Johnston","STL","LW","nhl",null],[8484188,"Theo Lindstein","STL","D","nhl",null],[8481006,"Tyler Tucker","STL","D","nhl",null],[8482784,"Zach Dean","STL","C","nhl",null],[8476883,"Andrei Vasilevskiy","TBL","G","yahoo",4.91],[8478519,"Anthony Cirelli","TBL","C","yahoo",2.43],[8479542,"Brandon Hagel","TBL","LW,RW","yahoo",3.55],[8478010,"Brayden Point","TBL","C","yahoo",2.88],[8480426,"Charle-Edouard D'Astous","TBL","D","nhl",null],[8483447,"Conor Geekie","TBL","C","nhl",null],[8483710,"Dennis Hildeby","TBL","G","nhl",null],[8483752,"Dominic James","TBL","C","nhl",null],[8482929,"Emil Lilleberg","TBL","D","nhl",null],[8478416,"Erik Cernak","TBL","D","nhl",null],[8482201,"Gage Goncalves","TBL","C","nhl",null],[8481624,"Ilya Mikheyev","TBL","RW","nhl",null],[8482655,"J.J. Moser","TBL","D","yahoo",1.7],[8477404,"Jake Guentzel","TBL","LW,RW","yahoo",3.56],[8479705,"Jeffrey Viel","TBL","LW","nhl",null],[8474590,"John Carlson","TBL","D","yahoo",2.63],[8481719,"Max Crozier","TBL","D","nhl",null],[8476453,"Nikita Kucherov","TBL","RW","yahoo",5.34],[8480995,"Pontus Holmberg","TBL","RW","nhl",null],[8474151,"Ryan McDonagh","TBL","D","nhl",null],[8477149,"Scott Sabourin","TBL","RW","nhl",null],[8475167,"Victor Hedman","TBL","D","yahoo",2.48],[8476826,"Yanni Gourde","TBL","C","nhl",null],[8476878,"Zemgus Girgensons","TBL","C","nhl",null],[8476932,"Anthony Stolarz","TOR","G","yahoo",2.39],[8479318,"Auston Matthews","TOR","C","yahoo",3.9],[8480870,"Bo Groulx","TOR","C","nhl",null],[8479520,"Brandon Duhaime","TOR","LW","nhl",null],[8475690,"Chris Tanev","TOR","D","nhl",null],[8476925,"Colton Sissons","TOR","C","nhl",null],[8478178,"Darren Raddysh","TOR","D","yahoo",3.31],[8484158,"Easton Cowan","TOR","LW","yahoo",2.22],[8486067,"Gavin McKenna","TOR","LW","nhl",null],[8478458,"Jack Roslovic","TOR","C,RW","yahoo",2.29],[8476931,"Jake McCabe","TOR","D","yahoo",1.86],[8475166,"John Tavares","TOR","C","yahoo",2.98],[8480893,"Kirill Marchenko","TOR","RW","yahoo",3.22],[8483546,"Marshall Rifai","TOR","D","nhl",null],[8477425,"Miles Wood","TOR","LW","nhl",null],[8476853,"Morgan Rielly","TOR","D","yahoo",1.94],[8483565,"Nick Blankenburg","TOR","D","nhl",null],[8477426,"Nick Paul","TOR","LW","nhl",null],[8475171,"Oliver Ekman-Larsson","TOR","D","yahoo",1.85],[8475683,"Sergei Bobrovsky","TOR","G","yahoo",3.5],[8476927,"Teddy Blueger","TOR","C","nhl",null],[8479442,"Troy Stecher","TOR","D","nhl",null],[8477939,"William Nylander","TOR","C,RW","yahoo",3.3],[8479772,"Zack MacEwen","TOR","RW","nhl",null],[8475314,"Anders Lee","UTA","LW","yahoo",2.24],[8479369,"Andrew Peeke","UTA","D","nhl",null],[8480849,"Barrett Hayton","UTA","C","nhl",null],[8479343,"Clayton Keller","UTA","LW,RW","yahoo",3.2],[8484388,"Daniil But","UTA","LW","nhl",null],[8484386,"Dmitri Simashev","UTA","D","nhl",null],[8482699,"Dylan Guenther","UTA","LW,RW","yahoo",3.47],[8480855,"Jack McBain","UTA","C","nhl",null],[8478507,"John Marino","UTA","D","yahoo",1.48],[8479977,"Kailer Yamamoto","UTA","RW","nhl",null],[8478872,"Karel Vejmelka","UTA","G","yahoo",3.52],[8478831,"Kevin Stenlund","UTA","C","nhl",null],[8478474,"Lawson Crouse","UTA","LW,RW","yahoo",2.54],[8477070,"Liam O'Brien","UTA","C","nhl",null],[8483431,"Logan Cooley","UTA","C","yahoo",3.06],[8477346,"MacKenzie Weegar","UTA","D","yahoo",3.03],[8483472,"Maveric Lamoureux","UTA","D","nhl",null],[8479619,"Michael Carcone","UTA","LW","nhl",null],[8479410,"Mikhail Sergachev","UTA","D","yahoo",2.6],[8477220,"Nate Schmidt","UTA","D","nhl",null],[8480084,"Nick DeSimone","UTA","D","nhl",null],[8477951,"Nick Schmaltz","UTA","C,RW","yahoo",2.91],[8482657,"Sebastian Cossa","UTA","G","nhl",null],[8476389,"Vincent Trocheck","UTA","C","yahoo",3.17],[8482691,"Aatu Räty","VAN","C","nhl",null],[8483395,"Arshdeep Bains","VAN","LW","nhl",null],[8475848,"Brendan Gallagher","VAN","RW","nhl",null],[8478444,"Brock Boeser","VAN","LW,RW","yahoo",2.42],[8482055,"Drew O'Connor","VAN","LW","nhl",null],[8480012,"Elias Pettersson","VAN","C","yahoo",2.71],[8483678,"Elias Pettersson","VAN","D","nhl",null],[8480078,"Filip Chytil","VAN","C","nhl",null],[8479425,"Filip Hronek","VAN","D","yahoo",2.56],[8478465,"Guillaume Brisebois","VAN","D","nhl",null],[8478498,"Jake DeBrusk","VAN","LW,RW","yahoo",2.16],[8476467,"Jamie Oleksiak","VAN","D","nhl",null],[8483476,"Jonathan Lekkerimäki","VAN","RW","nhl",null],[8480947,"Kevin Lankinen","VAN","G","nhl",null],[8482447,"Leevi Meriläinen","VAN","G","nhl",null],[8483499,"Liam Ohgren","VAN","LW","nhl",null],[8481024,"Linus Karlsson","VAN","C","nhl",null],[8474568,"Luke Schenn","VAN","D","nhl",null],[8482079,"Marco Rossi","VAN","C","yahoo",2.43],[8484136,"Max Sasson","VAN","C","nhl",null],[8481032,"Paul Cotter","VAN","LW","nhl",null],[8477967,"Thatcher Demko","VAN","G","yahoo",2.3],[8484240,"Tom Willander","VAN","D","nhl",null],[8483768,"Victor Mancini","VAN","D","nhl",null],[8484798,"Zeev Buium","VAN","D","yahoo",2.38],[8478499,"Adin Hill","VGK","G","yahoo",2.89],[8483890,"Braeden Bowman","VGK","RW","nhl",null],[8475188,"Brayden McNabb","VGK","D","nhl",null],[8479353,"Brett Howden","VGK","C,LW","yahoo",2.4],[8479394,"Carter Hart","VGK","G","yahoo",2.88],[8479639,"Dylan Coghlan","VGK","D","nhl",null],[8477964,"Ivan Barbashev","VGK","LW","yahoo",2.28],[8478403,"Jack Eichel","VGK","C","yahoo",3.65],[8478468,"Jeremy Lauzon","VGK","D","nhl",null],[8483553,"Marc Gatcomb","VGK","C","nhl",null],[8475913,"Mark Stone","VGK","RW","yahoo",2.73],[8478483,"Mitch Marner","VGK","C,LW,RW","yahoo",3.1],[8475343,"Nic Dowd","VGK","C","nhl",null],[8478396,"Noah Hanifin","VGK","D","yahoo",1.99],[8478450,"Parker Wotherspoon","VGK","D","nhl",null],[8481534,"Raphael Lavoie","VGK","C","nhl",null],[8478397,"Rasmus Andersson","VGK","D","yahoo",2.4],[8477447,"Shea Theodore","VGK","D","yahoo",2.33],[8476881,"Tomas Hertl","VGK","C,LW","yahoo",2.49],[8484803,"Trevor Connelly","VGK","LW","nhl",null],[8478109,"Victor Olofsson","VGK","LW","nhl",null],[8476448,"William Karlsson","VGK","C","yahoo",1.92],[8476392,"Adam Lowry","WPG","C","nhl",null],[8480113,"Alex Iafallo","WPG","LW","nhl",null],[8483471,"Brad Lambert","WPG","C","nhl",null],[8483532,"Clay Stevenson","WPG","G","nhl",null],[8481043,"Cole Koepke","WPG","LW","nhl",null],[8482149,"Cole Perfetti","WPG","LW,RW","yahoo",2.0],[8476945,"Connor Hellebuyck","WPG","G","yahoo",4.65],[8476331,"Dylan DeMelo","WPG","D","nhl",null],[8480049,"Dylan Samberg","WPG","D","nhl",null],[8480014,"Gabriel Vilardi","WPG","C,RW","yahoo",2.58],[8477938,"Haydn Fleury","WPG","D","nhl",null],[8482765,"Isak Rosen","WPG","RW","nhl",null],[8481030,"Jack St. Ivany","WPG","D","nhl",null],[8477504,"Josh Morrissey","WPG","D","yahoo",2.5],[8478398,"Kyle Connor","WPG","LW","yahoo",3.61],[8479983,"Mario Ferraro","WPG","D","nhl",null],[8476460,"Mark Scheifele","WPG","C","yahoo",3.79],[8480289,"Morgan Barron","WPG","C","nhl",null],[8480145,"Neal Pionk","WPG","D","yahoo",2.17],[8475799,"Nino Niederreiter","WPG","RW","nhl",null],[8479973,"Stuart Skinner","WPG","G","nhl",null],[8482459,"Tyrel Bauer","WPG","D","nhl",null],[8486025,"Viggo Björck","WPG","C","nhl",null],[8476480,"Vladislav Namestnikov","WPG","C","nhl",null],[8471214,"Alex Ovechkin","WSH","LW,RW","yahoo",2.86],[8477949,"Alex Tuch","WSH","LW,RW","yahoo",2.87],[8481656,"Aliaksei Protas","WSH","LW,RW","yahoo",2.41],[8478463,"Anthony Beauvillier","WSH","RW","nhl",null],[8476432,"Boone Jenner","WSH","C","nhl",null],[8479292,"Charlie Lindgren","WSH","G","nhl",null],[8484873,"Cole Hutson","WSH","D","yahoo",2.53],[8475795,"Dylan McIlrath","WSH","D","nhl",null],[8478440,"Dylan Strome","WSH","C","yahoo",2.51],[8483573,"Ethen Frank","WSH","RW","nhl",null],[8484999,"Ilya Protas","WSH","LW","yahoo",2.0],[8483491,"Ivan Miroshnichenko","WSH","LW","nhl",null],[8479345,"Jakob Chychrun","WSH","D","yahoo",3.2],[8479385,"Jordan Kyrou","WSH","RW","yahoo",2.36],[8482088,"Justin Sourdif","WSH","C","nhl",null],[8480313,"Logan Thompson","WSH","G","yahoo",4.05],[8480796,"Martin Fehérváry","WSH","D","yahoo",1.82],[8478911,"Matt Roy","WSH","D","nhl",null],[8479400,"Pierre-Luc Dubois","WSH","C","nhl",null],[8484186,"Ryan Leonard","WSH","RW","yahoo",2.55],[8480043,"Timothy Liljegren","WSH","D","nhl",null],[8476880,"Tom Wilson","WSH","RW","yahoo",3.34],[8479576,"Vincent Desharnais","WSH","D","nhl",null]];
+const DIR = DIR_RAW.map(([id,n,t,p,s,pr])=>({id,name:n,team:t,pos:p.split(','),src:s,proj:pr==null?null:pr}));
+/* Projected PPG (season projection per TEAM game, from Projected_Points.xlsx)
+   is looked up from the directory: by player id, else full name + team, else
+   last name + team when the saved name is a single word ("MacKinnon"). */
+const DIR_BY_ID=new Map(),DIR_BY_NT=new Map(),DIR_BY_LT=new Map();
+for(const d of DIR){
+  if(d.id) DIR_BY_ID.set(d.id,d);
+  DIR_BY_NT.set(nameKey(d.name)+'|'+d.team,d);
+  const lt=lastName(d.name)+'|'+d.team; if(!DIR_BY_LT.has(lt))DIR_BY_LT.set(lt,[]); DIR_BY_LT.get(lt).push(d);
+}
+function dirLookup(p){
+  if(p.id&&DIR_BY_ID.has(p.id)) return DIR_BY_ID.get(p.id);
+  const nt=DIR_BY_NT.get(nameKey(p.name)+'|'+p.team); if(nt) return nt;
+  if(nameKey(p.name).split(' ').length===1){
+    let c=DIR_BY_LT.get(lastName(p.name)+'|'+p.team)||[];
+    if(c.length>1&&p.pos) c=c.filter(d=>d.pos.some(x=>p.pos.includes(x)));   // two Hughes on NJD: the D is Luke
+    return c.length===1?c[0]:null;
+  }
+  return null;
+}
+/* Projections can be replaced per device by importing a projections table
+   (state.data.proj.list). Lookup order: imported table, then built-in. */
+let PROJ_IDX=null;
+function projIndex(){
+  if(PROJ_IDX) return PROJ_IDX;
+  const byId=new Map(),byNT=new Map();
+  for(const r of (state.data.proj&&state.data.proj.list)||[]){
+    if(r.id) byId.set(r.id,r.ppg);
+    byNT.set(nameKey(r.name)+'|'+r.team,r.ppg);
+  }
+  return PROJ_IDX={byId,byNT,on:((state.data.proj&&state.data.proj.list)||[]).length>0};
+}
+function dirProj(d){
+  const ix=projIndex();
+  if(ix.on){
+    if(d.id&&ix.byId.has(d.id)) return ix.byId.get(d.id);
+    const k=nameKey(d.name)+'|'+d.team; if(ix.byNT.has(k)) return ix.byNT.get(k);
+    return null;                      // an imported table replaces the built-in one entirely
+  }
+  return d.proj==null?null:d.proj;
+}
+function projOf(p){
+  if(p.derived!=null) return p.derived;
+  const d=dirLookup(p); if(d) return dirProj(d);
+  const ix=projIndex(); const k=nameKey(p.name)+'|'+p.team;   // off-directory player in an imported table
+  return ix.on&&ix.byNT.has(k)?ix.byNT.get(k):null;
+}
 
 /* ===== Positions and slot types ===== */
 const POSITIONS = ['C','LW','RW','D','G'];
@@ -226,6 +288,8 @@ const SLOT_TYPES = [
   {key:'G',    label:'G',    elig:['G'],                desc:'Goalie'}
 ];
 const DEFAULT_SLOTS = {C:2,LW:2,RW:2,F:0,D:4,Util:0,G:2};
+const DEFAULT_SPOTS = {bench:4,ir:1,irPlus:2};
+const SPOT_TYPES = [{key:'bench',label:'Bench',desc:'Counts toward the roster limit'},{key:'ir',label:'IR',desc:'Injured reserve; doesn’t count toward the limit'},{key:'irPlus',label:'IR+',desc:'Also for day-to-day/out players'}];
 const COMBOS = [['C'],['LW'],['RW'],['D'],['G'],['C','LW'],['C','RW'],['LW','RW'],['C','LW','RW']];
 const TEAMS = Object.keys(SCHED.teams).sort();
 const TEAM_ALIASES = {SJS:'SJ',TB:'TBL',LA:'LAK',NJ:'NJD',UTAH:'UTA',UTH:'UTA',ARI:'UTA',WAS:'WSH',CLB:'CBJ',MON:'MTL',NAS:'NSH',VEG:'VGK',LV:'VGK',WIN:'WPG',CAL:'CGY',FLO:'FLA',STL:'STL',NYI:'NYI',NYR:'NYR'};
@@ -250,7 +314,7 @@ function currentWeek(){
 function plays(team,i){const s=SCHED.teams[team];return !!s && s[i]==='1';}
 
 /* ===== Storage (this browser only; always guarded) ===== */
-function blank(){return {roster:[],ir:[],watch:[],settings:{leagueName:'',slots:{...DEFAULT_SLOTS},yahooLeagueId:'',ppgSource:'derived',useManual:true}};}
+function blank(){return {roster:[],ir:[],watch:[],settings:{leagueName:'',slots:{...DEFAULT_SLOTS},spots:{...DEFAULT_SPOTS},yahooLeagueId:'',ppgSource:'derived',useManual:true,playoffs:{on:false,weeks:[]}},proj:{asOf:'',source:'',list:[]}};}
 function normalize(d){
   const b=blank();
   if(!d||typeof d!=='object') return b;
@@ -262,10 +326,24 @@ function normalize(d){
   b.settings.yahooLeagueId=String(s.yahooLeagueId||'');
   if(PPG_SOURCES.some(x=>x.key===s.ppgSource)) b.settings.ppgSource=s.ppgSource;
   if(s.useManual===false) b.settings.useManual=false;
+  if(s.playoffs&&typeof s.playoffs==='object'){b.settings.playoffs.on=!!s.playoffs.on;b.settings.playoffs.weeks=(Array.isArray(s.playoffs.weeks)?s.playoffs.weeks:[]).map(Number).filter(w=>WEEKS.includes(w)).sort((x,y)=>x-y);}
   if(s.slots&&typeof s.slots==='object'){
     for(const t of SLOT_TYPES){const n=parseInt(s.slots[t.key],10);b.settings.slots[t.key]=Number.isFinite(n)?Math.max(0,Math.min(9,n)):0;}
   }
+  if(s.spots&&typeof s.spots==='object'){
+    for(const t of SPOT_TYPES){const n=parseInt(s.spots[t.key],10);if(Number.isFinite(n))b.settings.spots[t.key]=Math.max(0,Math.min(12,n));}
+  }
+  if(d.proj&&Array.isArray(d.proj.list)) b.proj={asOf:String(d.proj.asOf||''),source:String(d.proj.source||''),list:cleanProjList(d.proj.list)};
   return b;
+}
+function cleanProjList(list){
+  const out=[];
+  for(const r of list||[]){
+    const ppg=numOrNull(r&&r.ppg),name=String((r&&r.name)||'').trim(),team=normTeam(r&&r.team);
+    if(ppg===null||!name||!team) continue;
+    const q={name,team,ppg:Math.round(ppg*100)/100}; if(r.id) q.id=Number(r.id)||undefined; out.push(q);
+  }
+  return out;
 }
 function load(){
   try{
@@ -304,12 +382,13 @@ function cleanPlayer(p){
   for(const [k,v] of [['manual',manual],['derived',p.derived],['l14',p.l14],['l30',p.l30]]){const n=numOrNull(v);if(n!==null)out[k]=n;}
   const st=pctOrNull(p.start); if(st!==null&&st!==100) out.start=st;
   if(p.id) out.id=p.id;
-  if(p.locked) out.locked=true;
+  if(p.unlocked) out.unlocked=true;   // players are locked (never suggested as drops) unless unlocked
   return out;
 }
 
 /* ===== Points per game: four sources =====
-   derived = League Fan Pts / 84: per TEAM game, so missed games and goalie
+   derived ("Projected" on screen) = season projection per TEAM game, typed in
+             or taken from the player directory; missed games and goalie
              start rate are already in it.
    manual, l14, l30 = per game PLAYED (per start for goalies), so goalies are
              scaled by their start %.
@@ -317,7 +396,7 @@ function cleanPlayer(p){
    Otherwise the chosen source is used, falling back to the next one that
    has a value. */
 const PPG_SOURCES=[
-  {key:'derived',label:'Derived',short:'der',perStart:false},
+  {key:'derived',label:'Projected',short:'proj',perStart:false},
   {key:'l14',label:'Last 14 days',short:'L14',perStart:true},
   {key:'l30',label:'Last 30 days',short:'L30',perStart:true}
 ];
@@ -335,7 +414,7 @@ function effPPG(p){
   const st=state.data.settings;
   let key=null,val=null;
   if(st.useManual&&p.manual!=null){key='manual';val=p.manual;}
-  else for(const k of FALLBACK[st.ppgSource]||FALLBACK.derived){if(p[k]!=null){key=k;val=p[k];break;}}
+  else for(const k of FALLBACK[st.ppgSource]||FALLBACK.derived){const v=k==='derived'?projOf(p):p[k];if(v!=null){key=k;val=v;break;}}
   if(key===null) return {val:0,key:null,base:0,scaled:false};
   const perStart=key==='manual'||PPG_SOURCES.find(s=>s.key===key).perStart;
   const scaled=perStart&&isGoalie(p)&&p.start!=null&&p.start!==100;
@@ -413,22 +492,61 @@ function gamesGained(roster,days,slots,team,pos){
   }
   return hit;
 }
+/* ===== Net games: what a pickup is worth after the drop it requires =====
+   Unlocked roster players are the drop candidates. For each one, the whole
+   range is re-optimized with him gone and the pickup added, so a benched
+   player sliding into the freed slot is counted. Net = best of those.
+   (Total starts don't depend on PPG: every lineup the solver builds fills
+   the most slots possible.) */
+function startsTotal(roster,days,slots){
+  let n=0;for(const i of days) n+=solveDay(roster.filter(p=>plays(p.team,i)),slots).started.size;return n;
+}
+function dropOptions(){
+  const out=[];
+  // Only roster players: dropping an IR player frees an IR slot, not a roster spot.
+  state.data.roster.forEach((p,k)=>{if(p.unlocked)out.push({list:'roster',k,name:p.name});});
+  return out;
+}
+/* Roster limit = starting slots + bench. IR/IR+ players don't count toward it. */
+function rosterLimit(){return slotList().length+(state.data.settings.spots.bench||0);}
+function irLimit(){const s=state.data.settings.spots;return (s.ir||0)+(s.irPlus||0);}
+function openSpots(){return rosterLimit()-state.data.roster.length;}
+/* Which number leads: "open" = a pickup needs no drop; "net" = roster is
+   full and there are unlocked drop candidates; "full" = full, none unlocked. */
+function pickupMode(){return openSpots()>0?'open':(dropOptions().length?'net':'full');}
+function netGain(roster,days,slots,cand,drops,base){
+  let best=null;
+  for(const d of drops){
+    const after=roster.filter((_,x)=>x!==d.k).concat([cand]);
+    const n=startsTotal(after,days,slots)-base;
+    // most starts; ties go to the drop that loses the fewest points
+    const lost=roster[d.k].proj||0;
+    if(!best||n>best.n||(n===best.n&&lost<best.lost)) best={n,name:d.name,lost,d};
+  }
+  return best;
+}
 function streamerTable(roster,days,slots){
-  const rows=[];
+  const rows=[],drops=dropOptions(),hasDrops=pickupMode()==='net';
+  const base=hasDrops?startsTotal(roster,days,slots):0;
   for(const team of TEAMS){
     const teamGames=days.filter(i=>plays(team,i)).length;
+    if(!teamGames) continue;
     const by={};
-    for(const c of COMBOS) by[c.join('/')]=gamesGained(roster,days,slots,team,c);
     for(const c of COMBOS){
-      const key=c.join('/'),n=by[key].length;
-      if(!n) continue;
+      const raw=gamesGained(roster,days,slots,team,c);
+      const net=hasDrops?netGain(roster,days,slots,{team,pos:c,proj:0},drops,base):null;
+      by[c.join('/')]={raw,net,score:hasDrops?net.n:raw.length};   // with drop candidates, net is the headline
+    }
+    for(const c of COMBOS){
+      const key=c.join('/'),x=by[key];
+      if(x.score<=0) continue;
       let best=0;   // list a multi-position combo only if it beats every narrower one
-      for(const s of COMBOS) if(s.length<c.length&&s.every(x=>c.includes(x))) best=Math.max(best,by[s.join('/')].length);
-      if(n<=best) continue;
-      rows.push({team,elig:key,n,teamGames,npos:c.length,days:by[key]});
+      for(const s of COMBOS) if(s.length<c.length&&s.every(y=>c.includes(y))) best=Math.max(best,by[s.join('/')].score);
+      if(x.score<=best) continue;
+      rows.push({team,elig:key,n:x.raw.length,net:x.net,score:x.score,teamGames,npos:c.length,days:x.raw});
     }
   }
-  rows.sort((a,b)=>b.n-a.n||a.npos-b.npos||b.teamGames-a.teamGames||a.team.localeCompare(b.team));
+  rows.sort((a,b)=>b.score-a.score||b.n-a.n||a.npos-b.npos||b.teamGames-a.teamGames||a.team.localeCompare(b.team));
   return rows;
 }
 
@@ -508,14 +626,64 @@ function renderHeader(){
   $('#wkTitle').innerHTML='Week '+state.week+'<small>'+(lg?esc(lg)+' · ':'')+md(dateOf(days[0]))+' – '+md(dateOf(days[days.length-1]))+' · '+days.length+' days</small>';
   $('#prevWk').disabled=state.week===WEEKS[0];
   $('#nextWk').disabled=state.week===WEEKS[WEEKS.length-1];
-  document.querySelectorAll('#rangeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.r===state.range));
-  const set=state.tab==='settings';
-  if(set) $('#wkTitle').innerHTML='Settings<small>Saved in this browser only</small>';
+  const season=state.seasonView&&state.tab==='lineup';
+  document.querySelectorAll('#rangeSeg button').forEach(b=>{
+    b.classList.toggle('on',b.dataset.r==='season'?season:(!season&&b.dataset.r===state.range));
+    if(b.dataset.r==='season') b.classList.toggle('hidden',state.tab!=='lineup');   // season overview lives on the Lineup tab
+  });
+  if(season){const pw=playoffWeeks();$('#wkTitle').innerHTML='Season<small>'+(lg?esc(lg)+' · ':'')+'Every fantasy week'+(pw.length?' · playoffs '+pw.join(', '):'')+'</small>';}
+  const set=state.tab==='settings'||state.tab==='trades'||season;
+  if(state.tab==='settings') $('#wkTitle').innerHTML='Settings<small>Saved in this browser only</small>';
+  if(state.tab==='trades') $('#wkTitle').innerHTML='Trades<small>Your roster as-is vs. with the trade, from today on</small>';
   $('#prevWk').style.visibility=$('#nextWk').style.visibility=set?'hidden':'';
-  $('#rangeSeg').classList.toggle('hidden',set);
+  $('#rangeSeg').classList.toggle('hidden',state.tab==='settings'||state.tab==='trades');
+}
+
+/* ===== Season overview =====
+   For every fantasy week: how crowded each night is league-wide, and what that
+   does to YOUR lineup (starts, benched games, empty slots). Off-nights are
+   nights with 6 or fewer NHL games (12 or fewer teams); heavy nights have 10
+   or more (20+ teams). On heavy nights more of your players play at once, so
+   more of them end up benched. */
+const OFF_NIGHT=6, HEAVY_NIGHT=10;
+const NIGHT_GAMES=SCHED.weeks.map((_,i)=>Object.values(SCHED.teams).reduce((s,t)=>s+(t[i]==='1'?1:0),0)/2);
+function renderSeason(){
+  const root=$('#tab-lineup'),roster=effList(state.data.roster),slots=slotList(),ti=todayIndex(),pw=playoffWeeks();
+  if(!roster.length){root.innerHTML=welcomeCard();wireWelcome(root);return;}
+  const rows=WEEKS.map(w=>{
+    const days=weekDays(w);
+    const r=solveRange(roster,days,slots);
+    let starts=0,bench=0,empty=0,yourGames=0,yourHeavy=0;
+    r.perDay.forEach(d=>{const s=d.filled.filter(x=>x!==null).length;starts+=s;empty+=d.filled.length-s;bench+=d.bench.length;
+      yourGames+=d.games;if(NIGHT_GAMES[d.i]>=HEAVY_NIGHT)yourHeavy+=d.games;});
+    const nights=days.map(i=>NIGHT_GAMES[i]);
+    return {w,days,nights,off:nights.filter(g=>g<=OFF_NIGHT).length,heavy:nights.filter(g=>g>=HEAVY_NIGHT).length,
+      starts,bench,empty,yourGames,heavyShare:yourGames?yourHeavy/yourGames:0,past:days[days.length-1]<ti,current:days.includes(ti)};
+  });
+  const ahead=rows.filter(x=>!x.past);
+  const worst=[...ahead].sort((x,y)=>y.bench-x.bench)[0];
+  const cut=[...ahead.map(x=>x.bench)].sort((x,y)=>y-x)[Math.min(4,ahead.length-1)]??Infinity;   // top 5 bench weeks ahead
+  const maxG=Math.max(...NIGHT_GAMES,1);
+  let h='<div class="card"><div class="stats" style="grid-template-columns:repeat(3,1fr)">'+
+    '<div class="stat"><b>'+ahead.reduce((s,x)=>s+x.starts,0)+'</b><span>Starts ahead</span></div>'+
+    '<div class="stat big"><b>'+ahead.reduce((s,x)=>s+x.bench,0)+'</b><span>Benched ahead</span></div>'+
+    '<div class="stat"><b>'+(worst?'Wk '+worst.w:'–')+'</b><span>Most benched</span></div></div></div>'+
+    '<p class="note">Each square is one night; darker = more NHL games that night (number inside). <b>Off</b> nights (green outline) = '+OFF_NIGHT+' or fewer games, <b>heavy</b> = '+HEAVY_NIGHT+'+. “On heavy” is the share of your players’ games that land on heavy nights; the higher it is, the more you bench. Uses your current roster for every week.</p>';
+  h+='<div class="card">'+rows.map(x=>{
+    const d0=dateOf(x.days[0]),d1=dateOf(x.days[x.days.length-1]);
+    const strip='<div class="nights">'+x.days.map((i,j)=>{const g=x.nights[j],a=g?0.12+0.88*g/maxG:0;
+      return '<span class="night'+(g<=OFF_NIGHT?' off':'')+'" style="--a:'+a.toFixed(2)+';color:'+(a>0.55?'var(--accent-ink)':'var(--ink)')+'" title="'+DOW[dateOf(i).getDay()]+' '+md(dateOf(i))+': '+g+' games">'+g+'</span>';}).join('')+'</div>';
+    const hot=!x.past&&x.bench>0&&x.bench>=cut;
+    return '<div class="srow season'+(x.past?' past':'')+'"><div class="team">Wk '+x.w+'</div>'+
+      '<div><div class="days">'+md(d0)+' – '+md(d1)+(x.current?' <span class="tag">NOW</span>':'')+(pw.includes(x.w)?' <span class="badge">Playoffs</span>':'')+'</div>'+strip+
+      '<div class="days">'+x.off+' off · '+x.heavy+' heavy · '+Math.round(x.heavyShare*100)+'% on heavy · '+x.starts+' starts · '+x.empty+' empty slots</div></div>'+
+      '<div class="gg'+(hot?' hot':'')+'">'+x.bench+'<span>benched</span></div></div>';
+  }).join('')+'</div>';
+  root.innerHTML=h;
 }
 
 function renderLineup(){
+  if(state.seasonView) return renderSeason();
   const root=$('#tab-lineup'),roster=effList(state.data.roster),slots=slotList();
   if(!roster.length){root.innerHTML=welcomeCard();wireWelcome(root);return;}
   if(!slots.length){root.innerHTML='<div class="card welcome"><h2>No lineup slots</h2><p>Set your league’s lineup slots in Settings.</p></div>';return;}
@@ -557,15 +725,15 @@ const LOCK_SVG='<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="1
 const UNLOCK_SVG='<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
 
 /* One player card. Swipe it left to reveal buttons that move it to the other
-   two lists; tap it to edit; tap the lock to keep it out of drop suggestions. */
+   two lists; tap it to edit; tap the lock to allow or block it as a drop candidate. */
 function srcTag(p){const e=p.eff;if(!e||e.key===null)return '<span class="src src-none">none</span>';return '<span class="src src-'+e.key+'">'+srcShort(e.key)+(e.scaled?' '+p.start+'%':'')+'</span>';}
 function playerCard(list,k,p,sub,num){
   const others=['roster','ir','watch'].filter(x=>x!==list);
-  const lockable=list!=='watch';
+  const lockable=list==='roster',locked=!p.unlocked;
   return '<div class="swipe" data-list="'+list+'" data-k="'+k+'">'+
     '<div class="swipe-actions">'+others.map(o=>'<button class="mv-'+o+'" data-move="'+o+'">'+LIST_NAMES[o]+'</button>').join('')+'</div>'+
     '<div class="prow swipe-front">'+
-      (lockable?'<button class="lockbtn'+(p.locked?' on':'')+'" data-lock aria-label="'+(p.locked?'Unlock':'Lock')+' '+esc(p.name)+'" aria-pressed="'+(p.locked?'true':'false')+'">'+(p.locked?LOCK_SVG:UNLOCK_SVG)+'</button>':'')+
+      (lockable?'<button class="lockbtn'+(locked?'':' open')+'" data-lock aria-label="'+(locked?'Unlock':'Lock')+' '+esc(p.name)+'" aria-pressed="'+(locked?'true':'false')+'">'+(locked?LOCK_SVG:UNLOCK_SVG)+'</button>':'')+
       '<div class="main"><div class="nm">'+esc(p.name)+chips(p.pos)+'</div><div class="sub">'+sub+'</div></div>'+
       (num||'<div class="num"><b>'+f2(p.proj||0)+'</b><span>pts/gm '+srcTag(p)+'</span></div>')+
     '</div></div>';
@@ -576,13 +744,15 @@ function renderRoster(){
   const r=solveRange(roster,days,slots);
   const sectHead=(list,title,paste)=>'<div class="sect"><h2>'+title+'</h2><div class="actions" style="margin:0">'+(paste?'<button class="btn" data-paste="'+list+'">Paste</button>':'')+'<button class="btn" data-add="'+list+'">+ Add</button></div></div>';
 
-  let h=sectHead('roster','Roster · '+roster.length,true);
-  if(roster.length) h+='<p class="note">Swipe a player left to move him. Tap the lock to keep him out of drop suggestions. Red marks the 3 lowest point totals for the selected days (more if tied).</p>';
+  const lim=rosterLimit(),over=roster.length-lim;
+  let h=sectHead('roster','Roster · '+roster.length+'/'+lim+(over>0?' <span class="w">· '+over+' over</span>':over<0?' · '+(-over)+' open':' · full'),true);
+  if(roster.length) h+='<p class="note">Swipe a player left to move him. Everyone starts locked; unlock players you’d be willing to drop and the app tests those drops. Points shown are from games each player starts in the optimized lineup; red marks the 3 lowest (more if tied).</p>';
   h+='<div class="card">';
   if(!roster.length) h+='<div class="empty-state">No players yet. Paste rows from Excel or add them one at a time.</div>';
-  // Points left this week = pts/game x team games in the selected days.
-  // The 3 lowest totals are flagged red, plus anyone tied with the 3rd lowest.
-  const wkPts=roster.map((p,k)=>Math.round((p.proj||0)*r.perPlayer[k].gp*10)/10);   // compared as shown (1 decimal)
+  // Points left this week = pts/game x games he actually STARTS in the optimized
+  // lineup (benched games score nothing). The 3 lowest totals are flagged red,
+  // plus anyone tied with the 3rd lowest.
+  const wkPts=roster.map((p,k)=>Math.round((p.proj||0)*r.perPlayer[k].starts*10)/10);   // compared as shown (1 decimal)
   const cutoff=[...wkPts].sort((x,y)=>x-y)[Math.min(2,wkPts.length-1)];
   const ptsLabel=state.range==='rest'?'pts left':'wk pts';
   roster.forEach((p,k)=>{
@@ -592,28 +762,35 @@ function renderRoster(){
   });
   h+='</div>';
 
-  h+=sectHead('ir','IR · '+ir.length,false)+'<div class="card">';
-  if(!ir.length) h+='<div class="empty-state">Injured players go here. They stay on your team but are left out of the lineup.</div>';
+  // Value of bringing a player in (watchlist pickup or IR activation): straight
+  // in if there's an open roster spot, plus the best swap for an unlocked player.
+  const base=r.total,drops=dropOptions(),sBase=drops.length?startsTotal(roster,days,slots):0;
+  const cls=x=>x>0.005?'g':(x<-0.005?'w':'');
+  const sign=x=>(x>=0?'+':'')+f1(x);
+  const pickupLine=(c,verb)=>{
+    const add=rangeTotal(roster.concat([c]),days,slots)-base;
+    let best=null;
+    for(const d of drops){
+      const after=roster.filter((_,x)=>x!==d.k).concat([c]);
+      const t=rangeTotal(after,days,slots)-base;
+      if(!best||t>best.gain)best={gain:t,name:d.name,starts:startsTotal(after,days,slots)-sBase};
+    }
+    const gp=days.filter(i=>plays(c.team,i)).length;
+    const swap=best?' · Swap '+esc(best.name)+': <span class="'+cls(best.gain)+'">'+sign(best.gain)+'</span> ('+(best.starts>=0?'+':'')+best.starts+' GP)':(roster.length?' · <span class="muted">unlock players to test swaps</span>':'');
+    const addTxt=openSpots()>0?verb+': <span class="'+cls(add)+'">'+sign(add)+'</span>':'<span class="muted">'+verb+' '+sign(add)+' (needs a drop)</span>';
+    return esc(c.team)+' · '+gp+' GP · '+addTxt+swap;
+  };
+  h+=sectHead('ir','IR · '+ir.length+'/'+irLimit()+(ir.length>irLimit()?' <span class="w">· '+(ir.length-irLimit())+' over</span>':''),false)+'<div class="card">';
+  if(!ir.length) h+='<div class="empty-state">Injured players go here. They stay on your team but are left out of the lineup; each card shows what activating him would be worth.</div>';
   ir.forEach((p,k)=>{
-    const gp=days.filter(i=>plays(p.team,i)).length;
-    h+=playerCard('ir',k,p,esc(p.team)+' · out · '+gp+' team game'+(gp===1?'':'s'));
+    h+=playerCard('ir',k,p,pickupLine(p,'Activate'));
   });
   h+='</div>';
 
   h+=sectHead('watch','Watchlist · pickup ideas',true);
-  h+='<p class="note">What each player would add to your optimized lineup for the selected days: added as-is, or swapped for the unlocked roster player whose drop costs least.</p><div class="card">';
+  h+='<p class="note">What each player would add to your optimized lineup for the selected days: added as-is, or swapped for the unlocked player whose drop costs least (with net games).</p><div class="card">';
   if(!watch.length) h+='<div class="empty-state">Add free agents you are considering.</div>';
-  const base=r.total,droppable=roster.map((p,j)=>j).filter(j=>!roster[j].locked);
-  const cls=x=>x>0.005?'g':(x<-0.005?'w':'');
-  const sign=x=>(x>=0?'+':'')+f1(x);
-  watch.forEach((c,k)=>{
-    const add=rangeTotal(roster.concat([c]),days,slots)-base;
-    let best=null;
-    for(const j of droppable){const t=rangeTotal(roster.filter((_,x)=>x!==j).concat([c]),days,slots)-base;if(!best||t>best.gain)best={gain:t,name:roster[j].name};}
-    const gp=days.filter(i=>plays(c.team,i)).length;
-    const swap=best?' · Swap '+esc(best.name)+': <span class="'+cls(best.gain)+'">'+sign(best.gain)+'</span>':(roster.length?' · <span class="muted">all roster players locked</span>':'');
-    h+=playerCard('watch',k,c,esc(c.team)+' · '+gp+' GP · Add: <span class="'+cls(add)+'">'+sign(add)+'</span>'+swap);
-  });
+  watch.forEach((c,k)=>{h+=playerCard('watch',k,c,pickupLine(c,'Add'));});
   h+='</div>';
 
   root.innerHTML=h;
@@ -631,7 +808,7 @@ function movePlayer(from,k,to){
 }
 function toggleLock(list,k){
   const p=state.data[list][k];if(!p) return;
-  if(p.locked) delete p.locked; else p.locked=true;
+  if(p.unlocked) delete p.unlocked; else p.unlocked=true;
   save();renderAll();
 }
 
@@ -689,17 +866,27 @@ function wireSwipe(el){
 function renderStreamers(){
   const root=$('#tab-stream'),days=activeDays(),roster=effList(state.data.roster),slots=slotList();
   const rows=streamerTable(roster,days,slots),f=state.posFilter;
-  const sk=rows.filter(r=>r.elig!=='G'&&r.n>=state.minGames&&(f==='All'||r.elig.split('/').includes(f)));
-  const gl=rows.filter(r=>r.elig==='G'&&r.n>=state.minGames);
+  const sk=rows.filter(r=>r.elig!=='G'&&r.score>=state.minGames&&(f==='All'||r.elig.split('/').includes(f)));
+  const gl=rows.filter(r=>r.elig==='G'&&r.score>=state.minGames);
+  const nDrops=dropOptions().length,mode=pickupMode(),open=openSpots();
   const fb=['All','C','LW','RW','D'].map(p=>'<button class="fbtn'+(p===f?' on':'')+'" data-pf="'+p+'">'+p+'</button>').join('');
   const mg=[1,2,3].map(n=>'<button class="fbtn'+(n===state.minGames?' on':'')+'" data-mg="'+n+'">'+n+'+ games</button>').join('');
-  let h='<p class="note">Teams and positions that could start games in your open slots, after reshuffling your lineup. Tap a row to see that team’s matching players.'+(roster.length?'':' Add your roster first; with an empty roster every slot is open.')+'</p>'+
+  let h='<p class="note">Teams and positions that could start games for you, after reshuffling your lineup. Tap a row to see that team’s matching players.'+(roster.length?'':' Add your roster first; with an empty roster every slot is open.')+'</p>'+
+        '<p class="note">'+(mode==='open'?'You have <b>'+open+' open roster spot'+(open===1?'':'s')+'</b>, so starts shown need no drop.'
+          :mode==='net'?'Your roster is full. <b>Net</b> = starts gained after dropping the best of your '+nDrops+' unlocked player'+(nDrops===1?'':'s')+'; the lineup is re-optimized, so benched players sliding into the freed slot are counted. The “open spot” number is what he’d add without a drop.'
+          :'<span class="w">Your roster is full.</span> Starts shown assume an open spot; unlock players on the Roster tab to see <b>net</b> starts after a drop.')+'</p>'+
         '<div class="filters">'+fb+'</div><div class="filters">'+mg+'</div>';
   const list=(arr,showElig)=>{
     if(!arr.length) return '<div class="empty-state">No team adds a start here.</div>';
-    return arr.map(r=>'<div class="srow tap" data-team="'+r.team+'" data-elig="'+r.elig+'" role="button" tabindex="0"><div class="team">'+r.team+'</div><div><div>'+(showElig?r.elig.split('/').map(p=>'<span class="chip">'+p+'</span>').join(' '):'Goalie')+'</div>'+
-      '<div class="days">'+r.days.map(i=>DOW[dateOf(i).getDay()]).join(', ')+' · '+r.teamGames+' team games</div></div>'+
-      '<div class="gg">+'+r.n+'<span>starts</span></div><span class="chev">›</span></div>').join('');
+    return arr.map(r=>{
+      const head=showElig?r.elig.split('/').map(p=>'<span class="chip">'+p+'</span>').join(' '):'Goalie';
+      const dayTxt=r.days.length?r.days.map(i=>DOW[dateOf(i).getDay()]).join(', ')+' · ':'';
+      const big=r.net?r.net.n:r.n;
+      const sub=r.net?'<br>drop '+esc(r.net.name)+' · +'+r.n+' with an open spot':'';
+      return '<div class="srow tap" data-team="'+r.team+'" data-elig="'+r.elig+'" role="button" tabindex="0"><div class="team">'+r.team+'</div>'+
+        '<div><div>'+head+'</div><div class="days">'+dayTxt+r.teamGames+' team games'+sub+'</div></div>'+
+        '<div class="gg">'+(big>=0?'+':'')+big+'<span>'+(r.net?'net':'starts')+'</span></div><span class="chev">›</span></div>';
+    }).join('');
   };
   h+='<div class="sect"><h2>Skaters</h2></div><div class="card">'+list(sk,true)+'</div>';
   h+='<div class="sect"><h2>Goalies</h2></div><div class="card">'+list(gl,false)+'</div>';
@@ -723,15 +910,25 @@ function whereIs(p){for(const l of ['roster','ir','watch']) if(state.data[l].som
 function openStreamerPlayers(team,elig){
   const days=activeDays(),slots=slotList(),roster=effList(state.data.roster);
   const isG=elig.includes('G');
+  const drops=pickupMode()==='net'?dropOptions():[],base=drops.length?startsTotal(roster,days,slots):0,ptsBase=rangeTotal(roster,days,slots);
   const list=DIR.filter(p=>p.team===team&&elig.every(e=>p.pos.includes(e)))
-    .map(p=>({p,gain:gamesGained(roster,days,slots,team,p.pos).length,where:whereIs(p)}))
-    .sort((x,y)=>y.gain-x.gain||x.p.name.localeCompare(y.p.name));
+    .map(p=>{const pj=dirProj(p);const gain=gamesGained(roster,days,slots,team,p.pos).length;
+      const net=drops.length?netGain(roster,days,slots,{team,pos:p.pos,proj:0},drops,base):null;
+      // points he'd add: with the best drop when the roster is full, otherwise straight in
+      let pts=null;
+      if(pj!=null){
+        const cand={name:p.name,team,pos:p.pos,proj:pj};
+        const after=net?roster.filter((_,x)=>x!==net.d.k).concat([cand]):roster.concat([cand]);
+        pts=rangeTotal(after,days,slots)-ptsBase;
+      }
+      return {p,pj,gain,net,pts,score:net?net.n:gain,where:whereIs(p)};})
+    .sort((x,y)=>y.score-x.score||(y.pts??-99)-(x.pts??-99)||y.gain-x.gain||x.p.name.localeCompare(y.p.name));
   const teamGames=days.filter(i=>plays(team,i)).length;
   let h='<h3>'+team+' · '+(isG?'Goalies':elig.join(' / '))+'</h3>'+
-    '<p class="note" style="margin-top:-6px">'+teamGames+' team games in the selected days. Starts shown are what each player would add using his own eligibility. Check Yahoo to see who is actually a free agent.</p>';
+    '<p class="note" style="margin-top:-6px">'+teamGames+' team games in the selected days. Starts shown use each player’s own eligibility'+(drops.length?'; net is after dropping your best unlocked candidate':'')+'. Check Yahoo to see who is actually a free agent.</p>';
   if(!list.length) h+='<div class="empty-state">No '+team+' players in the directory match this eligibility.</div>';
   else h+='<div class="card">'+list.map((x,i)=>'<div class="prow"><div class="main"><div class="nm">'+esc(x.p.name)+chips(x.p.pos)+'</div>'+
-      '<div class="sub">+'+x.gain+' start'+(x.gain===1?'':'s')+(x.p.src==='ranks'?' · <span class="muted">not on NHL active roster</span>':'')+'</div></div>'+
+      '<div class="sub">'+(x.pj!=null?'<b>'+(x.pts>=0?'+':'')+f1(x.pts)+' pts</b> · '+f2(x.pj)+'/gm proj · ':'<span class="muted">no projection</span> · ')+(x.net?'<b>net '+(x.net.n>=0?'+':'')+x.net.n+'</b> (drop '+esc(x.net.name)+') · +'+x.gain+' with an open spot':'+'+x.gain+' start'+(x.gain===1?'':'s'))+(x.p.src==='ranks'?' · <span class="muted">not on NHL active roster</span>':'')+'</div></div>'+
       (x.where?'<span class="badge">'+LIST_NAMES[x.where]+'</span>':'<button class="btn" data-watch="'+i+'">+ Watch</button>')+'</div>').join('')+'</div>';
   h+='<div class="actions"><button class="btn grow" id="spClose">Close</button></div>';
   openSheet(h);
@@ -740,8 +937,250 @@ function openStreamerPlayers(team,elig){
     const x=list[+b.dataset.watch];
     state.data.watch.push({id:x.p.id||undefined,name:x.p.name,team:x.p.team,pos:x.p.pos.slice()});
     state.data.watch=state.data.watch.map(cleanPlayer).filter(Boolean);
-    save();b.outerHTML='<span class="badge">Watchlist</span>';toast(x.p.name+' added to watchlist; add his PPG to see his value');
+    save();b.outerHTML='<span class="badge">Watchlist</span>';toast(x.p.name+' added to watchlist'+(x.pj!=null?'':'; add his PPG to see his value'));
   });
+}
+
+/* ===== Trades =====
+   Ranges run from today. With playoffs set, "regular season" stops before the
+   first playoff week; "playoffs" is just the chosen weeks. */
+function playoffWeeks(){const p=state.data.settings.playoffs;return p.on?p.weeks.slice():[];}
+function playoffLabel(){const w=playoffWeeks();if(!w.length)return '';const d0=weekDays(w[0]),d1=weekDays(w[w.length-1]);return 'weeks '+w.join(', ')+' ('+md(dateOf(d0[0]))+' – '+md(dateOf(d1[d1.length-1]))+')';}
+function tradeRanges(){
+  const ti=Math.max(0,todayIndex()),pw=playoffWeeks();
+  const all=SCHED.weeks.map((w,i)=>({w,i})).filter(x=>x.i>=ti);
+  if(!pw.length) return [{key:'season',label:'Rest of season',weeks:[...new Set(all.map(x=>x.w))],days:all.map(x=>x.i)}];
+  const first=pw[0];
+  const reg=all.filter(x=>x.w<first),po=all.filter(x=>pw.includes(x.w));
+  return [{key:'reg',label:'Regular season',weeks:[...new Set(reg.map(x=>x.w))],days:reg.map(x=>x.i)},
+          {key:'po',label:'Playoffs',weeks:pw.slice(),days:po.map(x=>x.i)}];
+}
+function weekBreakdown(before,after,range,slots){
+  return range.weeks.map(w=>{
+    const days=range.days.filter(i=>SCHED.weeks[i]===w);
+    return {w,days,b:startsTotal(before,days,slots),a:startsTotal(after,days,slots),pb:rangeTotal(before,days,slots),pa:rangeTotal(after,days,slots)};
+  }).filter(x=>x.days.length);
+}
+function playerStarts(roster,days,slots,name){   // starts for one player in the optimized lineup
+  let n=0;
+  for(const i of days){const ps=roster.filter(p=>plays(p.team,i));const {started}=solveDay(ps,slots);started.forEach(j=>{if(ps[j].name===name)n++;});}
+  return n;
+}
+const trade={give:-1,get:{name:'',team:'',pos:[],ppg:''},range:null};
+function renderTrades(){
+  const root=$('#tab-trades'),slots=slotList(),st=state.data.settings;
+  const rosterRaw=state.data.roster,roster=effList(rosterRaw);
+  const ranges=tradeRanges();
+  if(!ranges.some(r=>r.key===trade.range)) trade.range=ranges[0].key;
+  const g=trade.get;
+  let h='<div class="sect"><h2>Trade</h2></div><div class="card pad">'+
+    '<div class="field"><label>You give</label><select id="tGive"><option value="-1">Choose a roster player…</option>'+
+      rosterRaw.map((p,k)=>'<option value="'+k+'"'+(k===trade.give?' selected':'')+'>'+esc(p.name)+' · '+esc(p.team)+' · '+p.pos.join('/')+'</option>').join('')+'</select></div>'+
+    '<div class="field ac"><label>You get</label><input id="tName" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Start typing a player’s name" value="'+esc(g.name)+'"><div class="sugg hidden" id="tSugg" role="listbox"></div></div>'+
+    '<div class="pair"><div class="field half"><label>Team</label><select id="tTeam"><option value="">—</option>'+TEAMS.map(t=>'<option'+(t===g.team?' selected':'')+'>'+t+'</option>').join('')+'</select></div>'+
+      '<div class="field half"><label>His PPG (optional)</label><input id="tPPG" type="number" inputmode="decimal" step="0.01" placeholder="—" value="'+esc(g.ppg)+'"></div></div>'+
+    '<div class="field" style="margin:0"><label>His positions</label><div class="posbtns">'+POSITIONS.map(x=>'<button type="button" data-tpos="'+x+'" class="'+(g.pos.includes(x)?'on':'')+'">'+x+'</button>').join('')+'</div></div>'+
+    '</div>';
+  if(!st.playoffs.on) h+='<p class="note">Tip: turn on Playoffs in Settings to compare your playoff weeks separately.</p>';
+  else if(!st.playoffs.weeks.length) h+='<p class="note">Playoffs are on but no weeks are selected yet (Settings → Playoffs).</p>';
+
+  const ready=trade.give>=0&&trade.give<rosterRaw.length&&g.team&&g.pos.length;
+  if(!ready){
+    h+='<div class="card"><div class="empty-state">Pick who you’d give, then the player you’d get (name, team and positions).</div></div>';
+  } else {
+    const giveP=roster[trade.give];
+    const ppg=numOrNull(g.ppg);
+    const incoming={name:g.name||'Incoming player',team:g.team,pos:g.pos,proj:ppg==null?0:ppg};
+    const after=roster.filter((_,x)=>x!==trade.give).concat([incoming]);
+    h+='<div class="seg" id="tRange">'+ranges.map(r=>'<button data-tr="'+r.key+'" class="'+(r.key===trade.range?'on':'')+'">'+r.label+'</button>').join('')+'</div>';
+    const range=ranges.find(r=>r.key===trade.range);
+    if(!range.days.length){
+      h+='<div class="card" style="margin-top:12px"><div class="empty-state">No days left in this range.</div></div>';
+    } else {
+      const wk=weekBreakdown(roster,after,range,slots);
+      const sb=wk.reduce((s,x)=>s+x.b,0),sa=wk.reduce((s,x)=>s+x.a,0);
+      const pb=wk.reduce((s,x)=>s+x.pb,0),pa=wk.reduce((s,x)=>s+x.pa,0);
+      const giveStarts=playerStarts(roster,range.days,slots,giveP.name),getStarts=playerStarts(after,range.days,slots,incoming.name);
+      const giveGP=range.days.filter(i=>plays(giveP.team,i)).length,getGP=range.days.filter(i=>plays(incoming.team,i)).length;
+      const d=sa-sb,showPts=ppg!=null;
+      const sg=x=>(x>0?'+':'')+x, cls=x=>x>0?'g':x<0?'w':'';
+      h+='<div class="card" style="margin-top:12px"><div class="stats" style="grid-template-columns:repeat('+(showPts?3:2)+',1fr)">'+
+        '<div class="stat big"><b class="'+cls(d)+'">'+sg(d)+'</b><span>Net starts</span></div>'+
+        '<div class="stat"><b>'+sb+' → '+sa+'</b><span>Team starts</span></div>'+
+        (showPts?'<div class="stat"><b class="'+cls(pa-pb)+'">'+(pa-pb>=0?'+':'')+f1(pa-pb)+'</b><span>Net points</span></div>':'')+
+        '</div></div>';
+      h+='<p class="note">'+esc(giveP.name)+': '+giveGP+' GP, '+giveStarts+' starts for you · '+esc(incoming.name)+': '+getGP+' GP, '+getStarts+' starts for you. '+
+        'Net starts also counts benched players who slide into (or lose) a spot.'+(showPts?'':' Add his PPG to see points.')+'</p>';
+      h+='<div class="sect"><h2>By week · '+range.label.toLowerCase()+'</h2></div><div class="card">'+
+        wk.map(x=>{const dd=x.a-x.b,dp=x.pa-x.pb,d0=dateOf(x.days[0]),d1=dateOf(x.days[x.days.length-1]);
+          return '<div class="prow" style="cursor:default"><div class="main"><div class="nm">Week '+x.w+(playoffWeeks().includes(x.w)?' <span class="badge">Playoffs</span>':'')+'</div>'+
+            '<div class="sub">'+md(d0)+' – '+md(d1)+' · '+x.b+' → '+x.a+' starts'+(showPts?' · '+(dp>=0?'+':'')+f1(dp)+' pts':'')+'</div></div>'+
+            '<div class="num"><b class="'+cls(dd)+'">'+sg(dd)+'</b><span>starts</span></div></div>';}).join('')+'</div>';
+    }
+  }
+  root.innerHTML=h;
+  $('#tGive').onchange=e=>{trade.give=+e.target.value;renderTrades();};
+  $('#tTeam').onchange=e=>{g.team=e.target.value;renderTrades();};
+  $('#tPPG').onchange=e=>{g.ppg=e.target.value;renderTrades();};
+  $('#tName').onchange=e=>{g.name=e.target.value.trim();};
+  root.querySelectorAll('[data-tpos]').forEach(b=>b.onclick=()=>{const x=b.dataset.tpos;g.pos=g.pos.includes(x)?g.pos.filter(y=>y!==x):POSITIONS.filter(y=>y===x||g.pos.includes(y));renderTrades();});
+  root.querySelectorAll('[data-tr]').forEach(b=>b.onclick=()=>{trade.range=b.dataset.tr;renderTrades();});
+  wireAutocomplete($('#tName'),$('#tSugg'),d=>{$('#tName').blur();   // let the field's own change event fire first, then apply the pick
+    g.name=d.name;g.team=d.team;g.pos=d.pos.slice();
+    const known=['roster','ir','watch'].flatMap(l=>state.data[l]).find(q=>samePlayer(q,d));   // reuse his PPG if he's on your lists
+    if(g.ppg===''){const e=known?effPPG(known):null;const v=e&&e.key?e.val:dirProj(d);if(v!=null)g.ppg=String(Math.round(v*100)/100);}
+    renderTrades();});
+}
+
+/* ===== Save files =====
+   One JSON format for the full save and each part; sections present decide
+   what an import can apply. The CSV player sheet is the human-friendly way
+   to see and edit every value the app accepts. */
+const SAVE_APP='lineup-optimizer', SAVE_FORMAT=1;
+function todayStamp(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function projStatus(){
+  const p=state.data.proj;
+  if(p.list.length) return 'Using imported projections: '+p.list.length+' players'+(p.asOf?' · as of '+esc(p.asOf):'')+(p.source?' · from '+esc(p.source):'');
+  return 'Using built-in projections: '+DIR.filter(d=>d.proj!=null).length+' players';
+}
+function effectiveProjections(){
+  const out=[],seen=new Set();
+  for(const d of DIR){const v=dirProj(d);if(v!=null){out.push({id:d.id||undefined,name:d.name,team:d.team,ppg:v});seen.add(nameKey(d.name)+'|'+d.team);}}
+  for(const r of state.data.proj.list) if(!seen.has(nameKey(r.name)+'|'+r.team)) out.push(r);   // imported players not in the directory
+  return out;
+}
+function buildSave(kind){
+  const st=state.data.settings,sec={};
+  if(kind==='full'||kind==='league') sec.league={name:st.leagueName,slots:{...st.slots},spots:{...st.spots},playoffs:{on:st.playoffs.on,weeks:st.playoffs.weeks.slice()}};
+  if(kind==='full'||kind==='team') sec.team={roster:state.data.roster,ir:state.data.ir,watch:state.data.watch};
+  if(kind==='full'||kind==='projections') sec.projections={asOf:state.data.proj.asOf||todayStamp(),players:effectiveProjections()};
+  if(kind==='full') sec.prefs={ppgSource:st.ppgSource,useManual:st.useManual,yahooLeagueId:st.yahooLeagueId};
+  return {app:SAVE_APP,format:SAVE_FORMAT,kind,savedAt:new Date().toISOString(),sections:sec};
+}
+function csvCell(v){const s=v==null?'':String(v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+const CSV_COLS=['Player','Team','Positions','Projected','Manual','Start %','List','Unlocked','Player ID'];
+function buildCsv(){
+  const rows=[],seen=new Set();
+  const listOf={roster:'Roster',ir:'IR',watch:'Watch'};
+  for(const l of ['roster','ir','watch']) for(const p of state.data[l]){
+    const d=dirLookup(p);
+    rows.push([p.name,p.team,p.pos.join(', '),p.derived!=null?p.derived:(d?dirProj(d):projOf(p)),p.manual,p.start,listOf[l],p.unlocked?'Y':'',p.id||(d&&d.id)||'']);
+    if(d) seen.add(d); 
+  }
+  const rest=DIR.filter(d=>!seen.has(d)).sort((x,y)=>x.team.localeCompare(y.team)||x.name.localeCompare(y.name));
+  for(const d of rest) rows.push([d.name,d.team,d.pos.join(', '),dirProj(d),'','','','',d.id||'']);
+  return '﻿'+[CSV_COLS].concat(rows).map(r=>r.map(csvCell).join(',')).join('\r\n');   // BOM so Excel keeps accents
+}
+function download(name,text,type){
+  try{
+    const url=URL.createObjectURL(new Blob([text],{type}));
+    const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1500);
+    toast('Downloaded '+name);
+  }catch(e){toast('Download failed in this browser');}
+}
+function downloadSave(kind){
+  if(kind==='csv') return download('lineup-players-'+todayStamp()+'.csv',buildCsv(),'text/csv;charset=utf-8');
+  download('lineup-'+kind+'-'+todayStamp()+'.json',JSON.stringify(buildSave(kind),null,1),'application/json');
+}
+/* --- reading files --- */
+function parseCsv(text){
+  text=String(text).replace(/^﻿/,'');
+  const first=text.split(/\r?\n/)[0]||'';
+  const delim=(first.match(/\t/g)||[]).length>(first.match(/,/g)||[]).length?'\t':((first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length?';':',');
+  const rows=[];let row=[],cell='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){cell+='"';i++;}else q=false;}else cell+=c;}
+    else if(c==='"') q=true;
+    else if(c===delim){row.push(cell);cell='';}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';}
+    else cell+=c;
+  }
+  if(cell!==''||row.length){row.push(cell);rows.push(row);}
+  return rows.filter(r=>r.some(c=>String(c).trim()!==''));
+}
+function readCsvSave(text){
+  const rows=parseCsv(text); if(rows.length<2) return null;
+  const head=rows[0].map(h=>h.trim().toLowerCase());
+  const col=(...names)=>head.findIndex(h=>names.some(n=>h===n||h.startsWith(n)));
+  const c={name:col('player','name'),team:col('team'),pos:col('positions','position','pos'),proj:col('projected','projection','proj'),
+           man:col('manual'),start:col('start'),list:col('list'),unl:col('unlocked'),id:col('player id','id')};
+  if(c.name<0||c.team<0) return null;
+  const proj=[],lists={roster:[],ir:[],watch:[]};let skipped=0;
+  for(const r of rows.slice(1)){
+    const g=i=>i>=0?String(r[i]??'').trim():'';
+    const name=g(c.name),team=normTeam(g(c.team)); if(!name){continue;} if(!team){skipped++;continue;}
+    const id=Number(g(c.id))||undefined, pv=numOrNull(g(c.proj));
+    if(pv!==null) proj.push({id,name,team,ppg:pv});
+    const lv=g(c.list).toLowerCase(), l=lv.startsWith('ros')?'roster':lv==='ir'||lv.startsWith('ir')||lv.startsWith('inj')?'ir':lv.startsWith('wat')?'watch':null;
+    if(l){
+      let pos=parsePositions(g(c.pos)); if(!pos.length){const d=dirLookup({id,name,team});pos=d?d.pos.slice():['C'];}
+      const p={id,name,team,pos}; const m=numOrNull(g(c.man)); if(m!==null)p.manual=m;
+      const st=pctOrNull(g(c.start)); if(st!==null&&st!==100)p.start=st;
+      if(/^(y|yes|true|1|x)$/i.test(g(c.unl))) p.unlocked=true;
+      lists[l].push(p);
+    }
+  }
+  const sec={};
+  if(proj.length) sec.projections={asOf:todayStamp(),players:proj};
+  if(lists.roster.length+lists.ir.length+lists.watch.length) sec.team=lists;
+  return {sections:sec,kind:'csv',skipped};
+}
+function readSave(text){
+  const t=String(text||'').trim(); if(!t) return null;
+  if(t[0]==='{'||t[0]==='['){
+    let d; try{d=JSON.parse(t);}catch(e){return null;}
+    if(d&&d.app===SAVE_APP&&d.sections) return {sections:d.sections,kind:d.kind||'full',savedAt:d.savedAt};
+    if(d&&Array.isArray(d.roster)){   // older "copy export" text from versions 2-13
+      const s=d.settings||{},sec={team:{roster:d.roster,ir:d.ir||[],watch:d.watch||[]}};
+      if(d.settings) {sec.league={name:s.leagueName,slots:s.slots,spots:s.spots,playoffs:s.playoffs};sec.prefs={ppgSource:s.ppgSource,useManual:s.useManual,yahooLeagueId:s.yahooLeagueId};}
+      return {sections:sec,kind:'legacy'};
+    }
+    return null;
+  }
+  return readCsvSave(t);
+}
+const SECTION_INFO={
+  league:{label:'League settings',sum:s=>{const n=Object.values(s.slots||{}).reduce((a,b)=>a+(+b||0),0);return (s.name?esc(s.name)+' · ':'')+n+' lineup slots · '+((s.spots&&s.spots.bench)??'?')+' bench'+(s.playoffs&&s.playoffs.on?' · playoffs wk '+(s.playoffs.weeks||[]).join(', '):'');}},
+  team:{label:'My team',sum:s=>(s.roster||[]).length+' roster · '+(s.ir||[]).length+' IR · '+(s.watch||[]).length+' watchlist',warn:'Replaces your roster, IR and watchlist'},
+  projections:{label:'Projections',sum:s=>(s.players||[]).length+' players'+(s.asOf?' · as of '+esc(s.asOf):''),warn:'Replaces the projections used on this device'},
+  prefs:{label:'Preferences',sum:s=>'PPG source, manual override, Yahoo league ID'}
+};
+function openImport(text,fname){
+  const r=readSave(text);
+  if(!r||!Object.keys(r.sections).length){toast('Nothing the app can read in '+(fname||'that file'));return;}
+  const keys=['league','team','projections','prefs'].filter(k=>r.sections[k]);
+  openSheet('<h3>Import</h3><p class="note" style="margin-top:-6px">'+esc(fname||'')+(r.savedAt?' · saved '+esc(new Date(r.savedAt).toLocaleString()):'')+(r.skipped?' · '+r.skipped+' rows skipped (unknown team)':'')+'. Choose what to apply:</p>'+
+    '<div class="card">'+keys.map(k=>'<label class="toggle prow" style="cursor:pointer"><input type="checkbox" data-sec="'+k+'" checked><span><b>'+SECTION_INFO[k].label+'</b><br><small>'+SECTION_INFO[k].sum(r.sections[k])+(SECTION_INFO[k].warn?' · '+SECTION_INFO[k].warn:'')+'</small></span></label>').join('')+'</div>'+
+    '<div class="actions"><button class="btn primary grow" id="imGo">Apply</button><button class="btn" id="imCancel">Cancel</button></div>');
+  $('#imCancel').onclick=closeSheet;
+  $('#imGo').onclick=()=>{
+    const pick=[...document.querySelectorAll('[data-sec]:checked')].map(x=>x.dataset.sec);
+    if(!pick.length){toast('Nothing selected');return;}
+    applySections(r.sections,pick,fname);
+    closeSheet();toast('Imported: '+pick.map(k=>SECTION_INFO[k].label).join(', '));renderAll();
+  };
+}
+function applySections(sec,pick,fname){
+  const cur=state.data, st=cur.settings;
+  if(pick.includes('league')){
+    const n=normalize({settings:{leagueName:sec.league.name,slots:sec.league.slots,spots:sec.league.spots,playoffs:sec.league.playoffs}});
+    st.leagueName=n.settings.leagueName;st.slots=n.settings.slots;st.spots=n.settings.spots;st.playoffs=n.settings.playoffs;
+  }
+  if(pick.includes('prefs')){
+    const n=normalize({settings:{ppgSource:sec.prefs.ppgSource,useManual:sec.prefs.useManual,yahooLeagueId:sec.prefs.yahooLeagueId}});
+    st.ppgSource=n.settings.ppgSource;st.useManual=n.settings.useManual;st.yahooLeagueId=n.settings.yahooLeagueId;
+  }
+  if(pick.includes('team')){
+    const n=normalize({roster:sec.team.roster,ir:sec.team.ir,watch:sec.team.watch});
+    cur.roster=n.roster;cur.ir=n.ir;cur.watch=n.watch;
+  }
+  if(pick.includes('projections')){
+    cur.proj={asOf:String(sec.projections.asOf||todayStamp()),source:String(fname||''),list:cleanProjList(sec.projections.players)};
+    PROJ_IDX=null;
+  }
+  save();
 }
 
 function renderSettings(){
@@ -752,23 +1191,39 @@ function renderSettings(){
     '<div class="sect"><h2>Lineup slots · '+total+' per day</h2></div><div class="card">'+
     SLOT_TYPES.map(t=>'<div class="stepper"><div class="lbl"><b>'+t.label+'</b><span>'+t.desc+(t.elig.length>1?' ('+t.elig.join(', ')+')':'')+'</span></div>'+
       '<div class="ctl"><button data-dec="'+t.key+'" aria-label="Fewer '+t.label+'">−</button><output>'+(st.slots[t.key]||0)+'</output><button data-inc="'+t.key+'" aria-label="More '+t.label+'">+</button></div></div>').join('')+
-    '</div><p class="note">Only starting slots matter here; bench and IR spots don’t change the optimal lineup. <a href="#" id="sDefaults">Reset to 2C · 2LW · 2RW · 4D · 2G</a></p>'+
+    '</div><p class="note"><a href="#" id="sDefaults">Reset to 2C · 2LW · 2RW · 4D · 2G</a></p>'+
+    '<div class="sect"><h2>Roster spots · limit '+rosterLimit()+'</h2></div><div class="card">'+
+    SPOT_TYPES.map(t=>'<div class="stepper"><div class="lbl"><b>'+t.label+'</b><span>'+t.desc+'</span></div>'+
+      '<div class="ctl"><button data-sdec="'+t.key+'" aria-label="Fewer '+t.label+'">−</button><output>'+(st.spots[t.key]||0)+'</output><button data-sinc="'+t.key+'" aria-label="More '+t.label+'">+</button></div></div>').join('')+
+    '</div><p class="note">Roster limit = starting slots + bench. When you’re under it, pickups need no drop; at the limit, the Streamers tab shows net starts after your best drop.</p>'+
 
+    '<div class="sect"><h2>Playoffs</h2></div><div class="card pad">'+
+    '<label class="toggle"><input type="checkbox" id="sPlayoffs"'+(st.playoffs.on?' checked':'')+'><span><b>My league has playoffs</b><br><small>Tap the fantasy weeks that are playoff weeks. The Trades tab then splits the regular season from the playoffs.</small></span></label>'+
+    (st.playoffs.on?'<div class="wkchips">'+WEEKS.map(w=>{const d=weekDays(w);return '<button class="fbtn'+(st.playoffs.weeks.includes(w)?' on':'')+'" data-pw="'+w+'">Wk '+w+'<small>'+md(dateOf(d[0]))+'</small></button>';}).join('')+'</div>'+
+      '<p class="note" style="margin:8px 0 0">'+(st.playoffs.weeks.length?'Playoffs: '+playoffLabel():'No playoff weeks selected yet.')+'</p>':'')+
+    '</div>'+
     '<div class="sect"><h2>Points per game</h2></div><div class="card pad">'+
     '<div class="field"><label>Use PPG from</label><div class="seg" id="sSource" style="margin-top:0">'+
       PPG_SOURCES.map(s=>'<button data-src="'+s.key+'">'+s.label+'</button>').join('')+'</div>'+
       '<small>If a player has no value for this source, the next available one is used: '+
       PPG_SOURCES.map(s=>s.label+' → '+FALLBACK[s.key].slice(1).map(k=>PPG_SOURCES.find(x=>x.key===k).label).join(' → ')).join('; ')+'.</small></div>'+
     '<label class="toggle"><input type="checkbox" id="sManual"'+(st.useManual?' checked':'')+'><span><b>Manual overrides when entered</b><br><small>Turn off to compare against the selected source without deleting your manual values.</small></span></label>'+
-    '<p class="note" style="margin:10px 0 0">Last 14 and Last 30 fill in once Yahoo is connected. Goalie start % scales Manual and Yahoo values; Derived already includes it.</p></div>'+
+    '<p class="note" style="margin:10px 0 0">Last 14 and Last 30 fill in once Yahoo is connected. Goalie start % scales Manual and Yahoo values; Projected already includes it.</p></div>'+
 
-    '<div class="sect"><h2>Roster data</h2></div>'+
-    '<p class="note">Your roster and settings live only in this browser. Back them up by copying the export somewhere safe; paste it into Import on another device.</p>'+
-    '<div class="card pad"><div class="actions" style="margin:0 0 12px"><button class="btn primary" id="sPaste">Paste roster from Excel</button></div>'+
-    '<div class="field"><label>Export</label><textarea id="exportTxt" readonly></textarea></div>'+
-    '<div class="actions"><button class="btn" id="copyBtn">Copy export</button></div></div>'+
-    '<div class="card pad"><div class="field"><label>Import</label><textarea id="importTxt" placeholder="Paste exported text here"></textarea></div>'+
-    '<div class="actions"><button class="btn" id="importBtn">Load import</button></div></div>'+
+    '<div class="sect"><h2>Save &amp; restore</h2></div>'+
+    '<p class="note">Everything lives only in this browser. Download a save file to back it up or move it to another device (Files, OneDrive, email…), then Import it there.</p>'+
+    '<div class="card pad">'+
+      '<div class="actions" style="margin:0 0 10px"><button class="btn primary grow" data-dl="full">Download full save</button></div>'+
+      '<div class="field" style="margin-bottom:8px"><label>Or just one part</label></div>'+
+      '<div class="actions" style="margin:0 0 10px"><button class="btn grow" data-dl="league">League settings</button><button class="btn grow" data-dl="team">My team</button><button class="btn grow" data-dl="projections">Projections</button></div>'+
+      '<div class="actions" style="margin:0 0 4px"><button class="btn grow" data-dl="csv">Player sheet (CSV)</button></div>'+
+      '<p class="note" style="margin:4px 0 12px">The player sheet lists every player with the columns the app accepts (Projected, Manual, Start %, List, Unlocked), filled with your current values. Edit it in Excel and import it back.</p>'+
+      '<div class="actions" style="margin:0"><button class="btn primary grow" id="sImport">Import a file…</button><button class="btn" id="sImportText">Paste text</button></div>'+
+      '<input type="file" id="sFile" accept=".json,.csv,.txt,application/json,text/csv,text/plain" class="hidden">'+
+    '</div>'+
+    '<div class="card pad"><div class="lbl"><b>Projections</b><br><span class="muted" style="font-size:13px">'+projStatus()+'</span></div>'+
+      (state.data.proj.list.length?'<div class="actions" style="margin-top:10px"><button class="btn danger" id="sProjReset">Reset to built-in</button></div>':'')+'</div>'+
+    '<div class="card pad"><div class="actions" style="margin:0"><button class="btn grow" id="sPaste">Paste roster from Excel</button></div></div>'+
 
     '<div class="sect"><h2>Yahoo Fantasy</h2></div><div class="card pad">'+
     '<div class="field"><label>Yahoo league ID</label><input id="sYahoo" inputmode="numeric" autocomplete="off" placeholder="The number in your league’s URL" value="'+esc(st.yahooLeagueId)+'"></div>'+
@@ -780,31 +1235,35 @@ function renderSettings(){
     '<p class="note">NHL schedule: '+first.toDateString()+' – '+last.toDateString()+', '+WEEKS.length+' fantasy weeks.</p>';
   root.innerHTML=h;
 
+  root.querySelectorAll('[data-sinc],[data-sdec]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.sinc||b.dataset.sdec,d=b.dataset.sinc?1:-1;
+    st.spots[k]=Math.max(0,Math.min(12,(st.spots[k]||0)+d));save();renderSettings();
+  });
   $('#sLeague').onchange=e=>{st.leagueName=e.target.value.trim();save();renderHeader();};
   $('#sYahoo').onchange=e=>{st.yahooLeagueId=e.target.value.replace(/\D/g,'');e.target.value=st.yahooLeagueId;save();};
   root.querySelectorAll('[data-inc],[data-dec]').forEach(b=>b.onclick=()=>{
     const k=b.dataset.inc||b.dataset.dec,d=b.dataset.inc?1:-1;
     st.slots[k]=Math.max(0,Math.min(9,(st.slots[k]||0)+d));save();renderSettings();
   });
+  $('#sPlayoffs').onchange=e=>{st.playoffs.on=e.target.checked;save();renderSettings();};
+  root.querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{
+    const w=+b.dataset.pw,pw=st.playoffs.weeks;
+    st.playoffs.weeks=pw.includes(w)?pw.filter(x=>x!==w):pw.concat([w]).sort((x,y)=>x-y);
+    save();renderSettings();
+  });
   document.querySelectorAll('#sSource button').forEach(b=>{b.classList.toggle('on',b.dataset.src===st.ppgSource);b.onclick=()=>{st.ppgSource=b.dataset.src;save();renderSettings();toast('Using '+b.textContent+' PPG');};});
   $('#sManual').onchange=e=>{st.useManual=e.target.checked;save();toast(st.useManual?'Manual values override':'Manual values ignored');};
   $('#sDefaults').onclick=e=>{e.preventDefault();st.slots={...DEFAULT_SLOTS};save();renderSettings();toast('Lineup slots reset');};
   $('#sPaste').onclick=()=>openPaste('roster');
-  $('#exportTxt').value=JSON.stringify(state.data);
-  $('#copyBtn').onclick=async()=>{
-    const ta=$('#exportTxt');
-    try{await navigator.clipboard.writeText(ta.value);toast('Copied');}
-    catch(e){ta.select();try{document.execCommand('copy');toast('Copied');}catch(_){toast('Select the text and copy it');}}
+  root.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>downloadSave(b.dataset.dl));
+  $('#sImport').onclick=()=>$('#sFile').click();
+  $('#sFile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>openImport(String(r.result),f.name);r.onerror=()=>toast('Could not read that file');r.readAsText(f);e.target.value='';};
+  $('#sImportText').onclick=()=>{
+    openSheet('<h3>Paste save text</h3><div class="field"><textarea id="itTxt" placeholder="Paste the contents of a save file or player sheet"></textarea></div>'+
+      '<div class="actions"><button class="btn primary grow" id="itGo">Continue</button><button class="btn" id="itCancel">Cancel</button></div>');
+    $('#itGo').onclick=()=>openImport($('#itTxt').value,'pasted text');$('#itCancel').onclick=closeSheet;
   };
-  $('#importBtn').onclick=()=>{
-    try{
-      const d=JSON.parse($('#importTxt').value);
-      if(!d||!Array.isArray(d.roster)) throw 0;
-      const keepSettings=!d.settings;
-      const nd=normalize(d); if(keepSettings) nd.settings=state.data.settings;
-      state.data=nd;save();toast('Loaded '+nd.roster.length+' players');renderAll();
-    }catch(e){toast('That text could not be read');}
-  };
+  if($('#sProjReset')) $('#sProjReset').onclick=()=>{if(confirm('Go back to the built-in projections on this device?')){state.data.proj={asOf:'',source:'',list:[]};PROJ_IDX=null;save();renderAll();toast('Using built-in projections');}};
   $('#clearBtn').onclick=()=>{if(confirm('Remove your roster, IR list and watchlist from this browser?')){state.data.roster=[];state.data.ir=[];state.data.watch=[];save();toast('Cleared');renderAll();}};
 }
 
@@ -855,17 +1314,19 @@ function openEditor(list,k){
     '<div class="field"><label>Team</label><select id="eTeam"><option value="">Choose…</option>'+TEAMS.map(t=>'<option'+(t===p.team?' selected':'')+'>'+t+'</option>').join('')+'</select></div>'+
     '<div class="field"><label>Positions</label><div class="posbtns">'+POSITIONS.map(x=>'<button type="button" data-pos="'+x+'" class="'+(p.pos.includes(x)?'on':'')+'">'+x+'</button>').join('')+'</div></div>'+
     '<div class="field" style="margin-bottom:6px"><label>Points per game</label></div>'+
-    '<div class="pair">'+numField('eManual','Manual',p.manual,'Overrides the others')+numField('eDerived','Derived',p.derived,'League pts ÷ 84')+'</div>'+
+    '<div class="pair">'+numField('eManual','Manual',p.manual,'Overrides the others')+numField('eDerived','Projected',p.derived,(()=>{const d=isNew?null:dirLookup(p);const v=d?dirProj(d):null;return v!=null?'Blank = list value '+f2(v):'Season projection per team game';})())+'</div>'+
     '<div class="pair">'+numField('eL14','Last 14 days',p.l14,'From Yahoo')+numField('eL30','Last 30 days',p.l30,'From Yahoo')+'</div>'+
     '<div class="field" id="eStartWrap"><label>Start % (goalies)</label><input id="eStart" type="number" inputmode="numeric" step="1" min="0" max="100" placeholder="100" value="'+v(p.start)+'">'+
-    '<small>Scales Manual and Yahoo values, which are per start. Derived already includes it.</small></div>'+
+    '<small>Scales Manual and Yahoo values, which are per start. Projected already includes it.</small></div>'+
     '<div class="actions"><button class="btn primary grow" id="eSave">Save</button>'+
     (isNew?'':others.map(o=>'<button class="btn" data-emove="'+o+'">To '+LIST_NAMES[o]+'</button>').join('')+'<button class="btn danger" id="eDel">Delete</button>')+
     '<button class="btn" id="eCancel">Cancel</button></div>');
   let pickedId=p.id||null,pickedName=p.name||'';
+  const listProj=d=>{const el=$('#eDerived');if(!el)return;const v=d?dirProj(d):null;el.placeholder=v!=null?f2(v):'—';const s=el.parentElement.querySelector('small');if(s)s.textContent=v!=null?'Blank = list value '+f2(v):'Season projection per team game';};
+  if(!isNew) listProj(dirLookup(p));
   wireAutocomplete($('#eName'),$('#eSugg'),d=>{
     pickedId=d.id;pickedName=d.name;
-    $('#eName').value=d.name;$('#eTeam').value=d.team;
+    $('#eName').value=d.name;$('#eTeam').value=d.team;listProj(d);
     document.querySelectorAll('[data-pos]').forEach(b=>b.classList.toggle('on',d.pos.includes(b.dataset.pos)));
     showStart();
   });
@@ -877,7 +1338,7 @@ function openEditor(list,k){
     if(pickedId&&nameKey(q.name)===nameKey(pickedName)) q.id=pickedId;   // keep the directory link unless the name was changed
     for(const [key,id] of [['manual','eManual'],['derived','eDerived'],['l14','eL14'],['l30','eL30']]){const n=numOrNull($('#'+id).value);if(n!==null)q[key]=n;}
     if(q.pos.includes('G')){const st=pctOrNull($('#eStart').value);if(st!==null&&st!==100)q.start=st;}
-    if(p.locked) q.locked=true;   // editing keeps the lock
+    if(p.unlocked) q.unlocked=true;   // editing keeps the lock state
     return q;
   };
   const valid=q=>{if(!q.name){toast('Enter a name');return false;}if(!q.team){toast('Choose a team');return false;}if(!q.pos.length){toast('Pick at least one position');return false;}return true;};
@@ -896,7 +1357,7 @@ function openPaste(list){
   openSheet('<h3>Paste from Excel</h3>'+
     '<p class="note" style="margin-top:-6px">Copy these columns in order from Excel: <b>Player · Team · Positions · PPG</b>, plus an optional <b>Start %</b> column for goalies (header “Start %”, or values like 55%). A header row is fine; other extra columns are ignored.</p>'+
     '<div class="field"><label>The PPG column is</label><div class="seg" id="pField" style="margin-top:0">'+
-      '<button data-f="manual">Manual</button><button data-f="derived">Derived</button></div></div>'+
+      '<button data-f="manual">Manual</button><button data-f="derived">Projected</button></div></div>'+
     '<div class="field"><textarea id="pTxt" placeholder="Player name&#9;TOR&#9;C, LW&#9;3.25"></textarea></div>'+
     '<div id="pPrev"></div>'+
     '<div class="actions"><button class="btn primary grow" id="pUpdate" disabled>Update matching players</button></div>'+
@@ -951,14 +1412,18 @@ function renderAll(){
   if(state.tab==='roster')renderRoster();
   if(state.tab==='stream')renderStreamers();
   if(state.tab==='settings')renderSettings();
+  if(state.tab==='trades')renderTrades();
 }
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
   state.tab=b.dataset.tab;
   document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('on',x===b));
-  ['lineup','roster','stream','settings'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==state.tab));
+  ['lineup','roster','stream','trades','settings'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==state.tab));
   window.scrollTo(0,0);renderAll();
 });
-document.querySelectorAll('#rangeSeg button').forEach(b=>b.onclick=()=>{state.range=b.dataset.r;state.collapsed={};renderAll();});
+document.querySelectorAll('#rangeSeg button').forEach(b=>b.onclick=()=>{
+  if(b.dataset.r==='season') state.seasonView=true; else {state.seasonView=false;state.range=b.dataset.r;}
+  state.collapsed={};window.scrollTo(0,0);renderAll();
+});
 function goWeek(delta){
   const i=WEEKS.indexOf(state.week)+delta;if(i<0||i>=WEEKS.length)return;
   state.week=WEEKS[i];state.range=defaultRange();state.collapsed={};renderAll();

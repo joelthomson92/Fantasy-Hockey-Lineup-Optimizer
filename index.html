@@ -132,6 +132,30 @@ nav.tabs button.on{color:var(--accent)}
 .preview{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
 .preview .row.bad{background:var(--warn-soft);color:var(--warn)}
 .muted{color:var(--muted)}
+.wk7{display:flex;gap:3px;margin-top:6px;max-width:210px}
+.wk7.long{max-width:none;gap:2px}
+.wk7 span{min-width:0}
+.wk7.long span{font-size:0;height:14px;border-radius:3px}
+.wk7.long span:nth-child(7){margin-right:4px}
+.wk7 span{flex:1;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;line-height:1;border:1px solid var(--line);color:var(--faint);background:transparent}
+.wk7 .st{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.wk7 .bn{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+.wk7 .na{border-style:dashed;color:var(--faint)}
+.wk7 .past{opacity:.38}
+.wk7 .today{box-shadow:0 0 0 1.5px var(--card),0 0 0 3px var(--muted)}
+.wklegend{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);margin:-4px 2px 10px;flex-wrap:wrap}
+.wklegend span:not(.muted){width:12px;height:12px;border-radius:3px;border:1px solid var(--line);margin-left:6px}
+.wklegend span:first-child{margin-left:0}
+.wklegend .st{background:var(--accent);border-color:var(--accent)}.wklegend .bn{background:var(--warn-soft);border-color:var(--warn)}
+
+.prog{height:8px;border-radius:4px;background:var(--chip);overflow:hidden}.prog>div{height:100%;background:var(--accent);transition:width .2s}
+.chip.st{background:var(--warn-soft);color:var(--warn);margin-left:4px}
+.stepper .tname{flex:1;min-width:0;border:1px solid transparent;background:transparent;color:var(--ink);border-radius:8px;padding:6px 8px;font:inherit;font-size:15px;font-weight:600}
+.stepper .tname:focus{border-color:var(--line);outline:none}
+.stepper #tNew{border-color:var(--line);font-weight:500}
+.stepper .tmine{width:20px;height:20px;margin:0 8px 0 0;accent-color:var(--accent,#2563eb);flex:none}
+.stepper .badge{margin:0 6px}
+
 .srow.season{grid-template-columns:44px 1fr auto;align-items:center}
 .srow.season.past{opacity:.5}
 .nights{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:5px 0 4px;max-width:260px}
@@ -314,7 +338,7 @@ function currentWeek(){
 function plays(team,i){const s=SCHED.teams[team];return !!s && s[i]==='1';}
 
 /* ===== Storage (this browser only; always guarded) ===== */
-function blank(){return {roster:[],ir:[],watch:[],settings:{leagueName:'',slots:{...DEFAULT_SLOTS},spots:{...DEFAULT_SPOTS},yahooLeagueId:'',ppgSource:'derived',useManual:true,playoffs:{on:false,weeks:[]}},proj:{asOf:'',source:'',list:[]}};}
+function blank(){return {roster:[],ir:[],watch:[],settings:{leagueName:'',slots:{...DEFAULT_SLOTS},spots:{...DEFAULT_SPOTS},yahooLeagueId:'',ppgSource:'derived',useManual:true,playoffs:{on:false,weeks:[]},maxAdds:4,sameDay:true},adds:{},proj:{asOf:'',source:'',list:[]},teams:[],lg:{asOf:'',source:'',players:[]},stash:{}};}
 function normalize(d){
   const b=blank();
   if(!d||typeof d!=='object') return b;
@@ -333,9 +357,70 @@ function normalize(d){
   if(s.spots&&typeof s.spots==='object'){
     for(const t of SPOT_TYPES){const n=parseInt(s.spots[t.key],10);if(Number.isFinite(n))b.settings.spots[t.key]=Math.max(0,Math.min(12,n));}
   }
+  if(Array.isArray(d.teams)) b.teams=cleanTeams(d.teams);
+  {const n=parseInt(s.maxAdds,10);if(Number.isFinite(n))b.settings.maxAdds=Math.max(0,Math.min(20,n));}
+  if(s.sameDay===false) b.settings.sameDay=false;
+  if(d.adds&&typeof d.adds==='object') for(const [w,n] of Object.entries(d.adds)){const v=parseInt(n,10);if(WEEKS.includes(+w)&&Number.isFinite(v)&&v>0)b.adds[w]=Math.min(20,v);}
+  b.stash=cleanStash(d.stash);
+  if(d.lg&&Array.isArray(d.lg.players)) b.lg={asOf:String(d.lg.asOf||''),source:String(d.lg.source||''),players:cleanLgPlayers(d.lg.players)};
   if(d.proj&&Array.isArray(d.proj.list)) b.proj={asOf:String(d.proj.asOf||''),source:String(d.proj.source||''),list:cleanProjList(d.proj.list)};
   return b;
 }
+/* Lists for teams you're not currently viewing, kept by team name so
+   switching back restores your locks, manual values and start %. */
+function cleanStash(s){
+  const out={};
+  if(s&&typeof s==='object') for(const [k,v] of Object.entries(s)){if(!v||typeof v!=='object')continue;
+    out[String(k)]={roster:(Array.isArray(v.roster)?v.roster:[]).map(cleanPlayer).filter(Boolean),ir:(Array.isArray(v.ir)?v.ir:[]).map(cleanPlayer).filter(Boolean)};}
+  return out;
+}
+function cleanTeams(list){
+  const out=[],seen=new Set();
+  for(const t of list||[]){const name=String((t&&t.name!=null?t.name:t)||'').trim();if(!name||seen.has(name.toLowerCase()))continue;seen.add(name.toLowerCase());const q={name};if(t&&t.mine)q.mine=true;out.push(q);}
+  if(out.filter(t=>t.mine).length>1) out.forEach((t,i)=>{if(i!==out.findIndex(x=>x.mine))delete t.mine;});
+  return out;
+}
+const FA_WORDS=/^(fa|free ?agents?|waivers?|w|-|none|available)$/i;
+function cleanLgPlayers(list){
+  const out=[];
+  for(const r of list||[]){
+    const name=String((r&&r.name)||'').trim(),team=normTeam(r&&r.team); if(!name||!team) continue;
+    const q={name,team}; if(r.id) q.id=Number(r.id)||undefined;
+    const pos=Array.isArray(r.pos)?r.pos.filter(x=>POSITIONS.includes(x)):parsePositions(r.pos); if(pos.length) q.pos=pos;
+    const owner=String(r.owner||'').trim(); if(owner&&!FA_WORDS.test(owner)) q.owner=owner;
+    const slot=String(r.slot||'').trim().toUpperCase(); if(slot) q.slot=slot;
+    const status=String(r.status||'').trim().toUpperCase(); if(status) q.status=status;
+    for(const k of ['l14','l30']){const v=numOrNull(r[k]);if(v!==null)q[k]=v;}
+    out.push(q);
+  }
+  return out;
+}
+let LG_IDX=null;
+function lgIndex(){
+  if(LG_IDX) return LG_IDX;
+  const byId=new Map(),byNT=new Map(),byLT=new Map(),byN=new Map();
+  for(const r of state.data.lg.players){
+    const nk=nameKey(r.name); byN.set(nk,byN.has(nk)?null:r);   // null = name shared by two players
+    if(r.id) byId.set(r.id,r);
+    byNT.set(nameKey(r.name)+'|'+r.team,r);
+    const lt=lastName(r.name)+'|'+r.team; if(!byLT.has(lt))byLT.set(lt,[]); byLT.get(lt).push(r);
+  }
+  return LG_IDX={byId,byNT,byLT,byN};
+}
+function lgLookup(p){
+  if(!state.data.lg.players.length) return null;
+  const ix=lgIndex();
+  const d=p.id?null:dirLookup(p), id=p.id||(d&&d.id);
+  if(id&&ix.byId.has(id)) return ix.byId.get(id);
+  const nt=ix.byNT.get(nameKey(d?d.name:p.name)+'|'+p.team); if(nt) return nt;
+  const n1=ix.byN.get(nameKey(d?d.name:p.name)); if(n1) return n1;   // traded since: unique full name, any team
+  if(nameKey(p.name).split(' ').length===1){let c=ix.byLT.get(lastName(p.name)+'|'+p.team)||[];if(c.length>1&&p.pos)c=c.filter(r=>(r.pos||[]).some(x=>p.pos.includes(x)));return c.length===1?c[0]:null;}
+  return null;
+}
+function myTeamName(){const t=state.data.teams.find(t=>t.mine);return t?t.name:null;}
+function ownerOf(p){const r=lgLookup(p);return r&&r.owner?r.owner:null;}
+function statusBadge(p){const r=lgLookup(p);return r&&r.status?'<span class="chip st">'+esc(r.status)+'</span>':'';}
+
 function cleanProjList(list){
   const out=[];
   for(const r of list||[]){
@@ -414,7 +499,7 @@ function effPPG(p){
   const st=state.data.settings;
   let key=null,val=null;
   if(st.useManual&&p.manual!=null){key='manual';val=p.manual;}
-  else for(const k of FALLBACK[st.ppgSource]||FALLBACK.derived){const v=k==='derived'?projOf(p):p[k];if(v!=null){key=k;val=v;break;}}
+  else for(const k of FALLBACK[st.ppgSource]||FALLBACK.derived){const v=k==='derived'?projOf(p):(p[k]!=null?p[k]:(()=>{const r=lgLookup(p);return r&&r[k]!=null?r[k]:null;})());if(v!=null){key=k;val=v;break;}}
   if(key===null) return {val:0,key:null,base:0,scaled:false};
   const perStart=key==='manual'||PPG_SOURCES.find(s=>s.key===key).perStart;
   const scaled=perStart&&isGoalie(p)&&p.start!=null&&p.start!==100;
@@ -591,7 +676,7 @@ function findMatch(p,rows){
 }
 
 /* ===== App state ===== */
-const state={data:load(),week:currentWeek(),range:null,tab:'lineup',posFilter:'All',minGames:1,collapsed:{}};
+const state={faOnly:true,data:load(),week:currentWeek(),range:null,tab:'lineup',posFilter:'All',minGames:1,collapsed:{}};
 function activeDays(){
   const days=weekDays(state.week);
   if(state.range==='rest'){const ti=todayIndex();return days.filter(i=>i>=ti);}
@@ -727,6 +812,25 @@ const UNLOCK_SVG='<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height=
 /* One player card. Swipe it left to reveal buttons that move it to the other
    two lists; tap it to edit; tap the lock to allow or block it as a drop candidate. */
 function srcTag(p){const e=p.eff;if(!e||e.key===null)return '<span class="src src-none">none</span>';return '<span class="src src-'+e.key+'">'+srcShort(e.key)+(e.scaled?' '+p.start+'%':'')+'</span>';}
+/* Mini schedule for the fantasy week: one box per day. Filled = starts in the
+   optimized lineup, orange = plays but benched, empty = no game. Days already
+   played are faded; today is outlined. */
+const DOW1='SMTWTFS';
+function weekStrip(states,days){
+  const ti=todayIndex();
+  return '<div class="wk7'+(days.length>7?' long':'')+'" aria-label="'+states.filter(s=>s==='st').length+' starts, '+states.filter(s=>s==='bn').length+' benched this week">'+
+    days.map((i,d)=>'<span class="'+states[d]+(i<ti?' past':'')+(i===ti?' today':'')+'" title="'+dayLabel(i)+'">'+DOW1[dateOf(i).getDay()]+'</span>').join('')+'</div>';
+}
+function rosterWeek(roster,slots){   // per day: set of roster indexes that start
+  const days=weekDays(state.week);
+  return {days,sets:days.map(i=>{const idx=[];roster.forEach((p,k)=>{if(plays(p.team,i))idx.push(k);});const {started}=solveDay(idx.map(k=>roster[k]),slots);return new Set([...started].map(j=>idx[j]));})};
+}
+function stripRoster(W,k,p){return weekStrip(W.days.map((i,d)=>!plays(p.team,i)?'off':W.sets[d].has(k)?'st':'bn'),W.days);}
+function stripCandidate(roster,c,slots){   // if he were added straight in
+  const days=weekDays(state.week);
+  return weekStrip(days.map(i=>{if(!plays(c.team,i))return 'off';const ps=roster.filter(p=>plays(p.team,i)).concat([c]);return solveDay(ps,slots).started.has(ps.length-1)?'st':'bn';}),days);
+}
+
 function playerCard(list,k,p,sub,num){
   const others=['roster','ir','watch'].filter(x=>x!==list);
   const lockable=list==='roster',locked=!p.unlocked;
@@ -734,19 +838,21 @@ function playerCard(list,k,p,sub,num){
     '<div class="swipe-actions">'+others.map(o=>'<button class="mv-'+o+'" data-move="'+o+'">'+LIST_NAMES[o]+'</button>').join('')+'</div>'+
     '<div class="prow swipe-front">'+
       (lockable?'<button class="lockbtn'+(locked?'':' open')+'" data-lock aria-label="'+(locked?'Unlock':'Lock')+' '+esc(p.name)+'" aria-pressed="'+(locked?'true':'false')+'">'+(locked?LOCK_SVG:UNLOCK_SVG)+'</button>':'')+
-      '<div class="main"><div class="nm">'+esc(p.name)+chips(p.pos)+'</div><div class="sub">'+sub+'</div></div>'+
+      '<div class="main"><div class="nm">'+esc(p.name)+chips(p.pos)+statusBadge(p)+(list==='watch'&&ownerOf(p)&&ownerOf(p)!==myTeamName()?' <span class="badge">'+esc(ownerOf(p))+'</span>':'')+'</div><div class="sub">'+sub+'</div></div>'+
       (num||'<div class="num"><b>'+f2(p.proj||0)+'</b><span>pts/gm '+srcTag(p)+'</span></div>')+
     '</div></div>';
 }
 
 function renderRoster(){
   const root=$('#tab-roster'),roster=effList(state.data.roster),ir=effList(state.data.ir),watch=effList(state.data.watch),days=activeDays(),slots=slotList();
-  const r=solveRange(roster,days,slots);
+  const r=solveRange(roster,days,slots),W=rosterWeek(roster,slots);
   const sectHead=(list,title,paste)=>'<div class="sect"><h2>'+title+'</h2><div class="actions" style="margin:0">'+(paste?'<button class="btn" data-paste="'+list+'">Paste</button>':'')+'<button class="btn" data-add="'+list+'">+ Add</button></div></div>';
 
   const lim=rosterLimit(),over=roster.length-lim;
   let h=sectHead('roster','Roster · '+roster.length+'/'+lim+(over>0?' <span class="w">· '+over+' over</span>':over<0?' · '+(-over)+' open':' · full'),true);
-  if(roster.length) h+='<p class="note">Swipe a player left to move him. Everyone starts locked; unlock players you’d be willing to drop and the app tests those drops. Points shown are from games each player starts in the optimized lineup; red marks the 3 lowest (more if tied).</p>';
+  const mine=myTeamName(),mineCount=mine?state.data.lg.players.filter(r=>r.owner===mine).length:0;
+  if(mine) h+='<div class="card pad" style="display:flex;align-items:center;gap:10px"><div class="grow" style="flex:1;min-width:0"><b>'+esc(mine)+'</b><br><span class="muted" style="font-size:13px">'+(mineCount?mineCount+' players in league data'+(state.data.lg.asOf?' · as of '+esc(state.data.lg.asOf):''):'Not in league data')+' · <a href="#" id="pickTeam">switch team</a></span></div>'+(mineCount?'<button class="btn" id="loadMine">Reload</button>':'')+'</div>';
+  if(roster.length) h+='<p class="note">Swipe a player left to move him. Everyone starts locked; unlock players you’d be willing to drop and the app tests those drops. Points shown are from games each player starts in the optimized lineup; red marks the 3 lowest (more if tied).</p><div class="wklegend"><span class="st"></span>Starts<span class="bn"></span>Benched<span class="off"></span>No game<span class="muted">· watchlist and IR: if added</span></div>';
   h+='<div class="card">';
   if(!roster.length) h+='<div class="empty-state">No players yet. Paste rows from Excel or add them one at a time.</div>';
   // Points left this week = pts/game x games he actually STARTS in the optimized
@@ -758,7 +864,7 @@ function renderRoster(){
   roster.forEach((p,k)=>{
     const s=r.perPlayer[k],low=roster.length>3&&wkPts[k]<=cutoff;
     const num='<div class="num'+(low?' low':'')+'"><b>'+f1(wkPts[k])+'</b><span>'+ptsLabel+' · '+f2(p.proj||0)+'/gm '+srcTag(p)+'</span></div>';
-    h+=playerCard('roster',k,p,esc(p.team)+' · '+s.gp+' GP · '+s.starts+' start'+(s.starts===1?'':'s')+(s.benched?' · <span class="w">'+s.benched+' benched</span>':''),num);
+    h+=playerCard('roster',k,p,esc(p.team)+' · '+s.gp+' GP · '+s.starts+' start'+(s.starts===1?'':'s')+(s.benched?' · <span class="w">'+s.benched+' benched</span>':'')+stripRoster(W,k,p),num);
   });
   h+='</div>';
 
@@ -783,20 +889,73 @@ function renderRoster(){
   h+=sectHead('ir','IR · '+ir.length+'/'+irLimit()+(ir.length>irLimit()?' <span class="w">· '+(ir.length-irLimit())+' over</span>':''),false)+'<div class="card">';
   if(!ir.length) h+='<div class="empty-state">Injured players go here. They stay on your team but are left out of the lineup; each card shows what activating him would be worth.</div>';
   ir.forEach((p,k)=>{
-    h+=playerCard('ir',k,p,pickupLine(p,'Activate'));
+    h+=playerCard('ir',k,p,pickupLine(p,'Activate')+stripCandidate(roster,p,slots));
   });
   h+='</div>';
 
   h+=sectHead('watch','Watchlist · pickup ideas',true);
   h+='<p class="note">What each player would add to your optimized lineup for the selected days: added as-is, or swapped for the unlocked player whose drop costs least (with net games).</p><div class="card">';
   if(!watch.length) h+='<div class="empty-state">Add free agents you are considering.</div>';
-  watch.forEach((c,k)=>{h+=playerCard('watch',k,c,pickupLine(c,'Add'));});
+  watch.forEach((c,k)=>{h+=playerCard('watch',k,c,pickupLine(c,'Add')+stripCandidate(roster,c,slots));});
   h+='</div>';
 
   root.innerHTML=h;
   root.querySelectorAll('[data-add]').forEach(el=>el.onclick=()=>openEditor(el.dataset.add,-1));
   root.querySelectorAll('[data-paste]').forEach(el=>el.onclick=()=>openPaste(el.dataset.paste));
   root.querySelectorAll('.swipe').forEach(wireSwipe);
+  if($('#loadMine')) $('#loadMine').onclick=openLoadMine;
+  if($('#pickTeam')) $('#pickTeam').onclick=e=>{e.preventDefault();openTeamPicker();};
+}
+
+function teamFromLeague(name,keepFrom){   // roster + IR for a team, carrying over values from players in keepFrom
+  const own=state.data.lg.players.filter(r=>r.owner===name);
+  const isIR=r=>/^IR/.test(r.slot||'');
+  const build=r=>{
+    const old=keepFrom.find(q=>samePlayer(q,{id:r.id,name:r.name,team:r.team}));
+    const d=dirLookup(r);
+    const q=Object.assign({},old||{},{name:old?old.name:(d?d.name:r.name),team:r.team,pos:(r.pos&&r.pos.length?r.pos:(old?old.pos:(d?d.pos:['C']))).slice()});
+    const id=r.id||(d&&d.id); if(id) q.id=id;
+    return cleanPlayer(q);
+  };
+  return {own,roster:own.filter(r=>!isIR(r)).map(build),ir:own.filter(isIR).map(build)};
+}
+/* Settings → Teams: picking a team swaps what the Roster tab shows. The team
+   you leave is kept as-is; a team never viewed before is built from league data. */
+function switchTeam(i){
+  const T=state.data.teams,cur=myTeamName(),nm=T[i].name; if(cur===nm) return;
+  const S=state.data.stash;
+  if(cur) S[cur]={roster:state.data.roster,ir:state.data.ir};
+  T.forEach((t,j)=>{if(j===i)t.mine=true;else delete t.mine;});
+  let how;
+  if(!cur&&state.data.roster.length+state.data.ir.length){how='kept your current roster';}   // first pick: the roster you have is this team's
+  else if(S[nm]){state.data.roster=S[nm].roster;state.data.ir=S[nm].ir;delete S[nm];how='restored';}
+  else if(state.data.lg.players.some(r=>r.owner===nm)){const L=teamFromLeague(nm,[]);state.data.roster=L.roster;state.data.ir=L.ir;how='loaded from league data';}
+  else {state.data.roster=[];state.data.ir=[];how='empty roster';}
+  state.data.watch=state.data.watch.filter(w=>!state.data.roster.concat(state.data.ir).some(p=>samePlayer(p,w)));
+  finder.results=null;trade.give=-1;
+  save();toast('Showing '+nm+' · '+how);
+}
+function openLoadMine(){
+  const mine=myTeamName(); if(!mine) return;
+  const L=teamFromLeague(mine,['roster','ir','watch'].flatMap(l=>state.data[l])),own=L.own;
+  const ros=L.roster,ir=L.ir;
+  const gone=state.data.roster.concat(state.data.ir).filter(p=>!own.some(r=>samePlayer(p,{id:r.id,name:r.name,team:r.team})));
+  openSheet('<h3>Load '+esc(mine)+'</h3><p class="note" style="margin-top:-6px">From league data'+(state.data.lg.asOf?' as of '+esc(state.data.lg.asOf):'')+'. Locks, manual values and start % carry over for players you already have.</p>'+
+    '<div class="card pad"><b>'+ros.length+'</b> roster · <b>'+ir.length+'</b> IR'+(gone.length?'<br><span class="muted" style="font-size:13px">No longer on your team: '+gone.map(p=>esc(p.name)).join(', ')+'</span>':'')+'</div>'+
+    '<div class="actions"><button class="btn primary grow" id="lmGo">Replace roster and IR</button><button class="btn" id="lmCancel">Cancel</button></div>');
+  $('#lmCancel').onclick=closeSheet;
+  $('#lmGo').onclick=()=>{state.data.roster=ros;state.data.ir=ir;
+    state.data.watch=state.data.watch.filter(w=>!ros.concat(ir).some(p=>samePlayer(p,w)));
+    save();closeSheet();toast('Loaded '+ros.length+' roster + '+ir.length+' IR');renderAll();};
+}
+
+function openTeamPicker(){
+  const T=state.data.teams;
+  openSheet('<h3>Show team</h3><p class="note" style="margin-top:-6px">Each team keeps its own roster, IR, locks and manual values on this device. The watchlist is shared.</p><div class="card">'+
+    T.map((t,i)=>'<div class="prow" data-pick="'+i+'" style="cursor:pointer"><div class="main"><div class="nm">'+esc(t.name)+'</div><div class="sub">'+(t.mine?'Showing now':state.data.stash[t.name]?'Saved on this device':state.data.lg.players.some(r=>r.owner===t.name)?'From league data':'No players yet')+'</div></div>'+(t.mine?'<span class="badge">Showing</span>':'')+'</div>').join('')+
+    '</div><div class="actions"><button class="btn grow" id="tpClose">Close</button></div>');
+  $('#tpClose').onclick=closeSheet;
+  document.querySelectorAll('[data-pick]').forEach(el=>el.onclick=()=>{switchTeam(+el.dataset.pick);closeSheet();renderAll();});
 }
 
 function movePlayer(from,k,to){
@@ -863,6 +1022,162 @@ function wireSwipe(el){
   el.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>movePlayer(list,k,b.dataset.move));
 }
 
+/* ===== Streaming plan =====
+   Works one roster spot at a time. A spot is an open roster spot or an
+   unlocked player you'd drop. Over the days left in the week, the spot is held
+   by a chain of players: the unlocked player (until he's dropped), then one
+   free agent after another, each swap costing one add.
+   Every player's value on a day is what he adds to that day's optimized
+   lineup, and days are independent of each other (lineups are set daily), so
+   the best chain for a spot is found exactly by dynamic programming over
+   days × adds used × who holds the spot. Spots are then filled one after
+   another, each planned around the streamers already chosen. */
+function freeAgentPool(){
+  const haveLg=state.data.lg.players.length>0,out=[];
+  for(const d0 of DIR){
+    const r=lgLookup(d0),d=r&&r.pos&&r.pos.length?Object.assign({},d0,{pos:r.pos}):d0;
+    if(haveLg&&r&&r.owner) continue;                                   // rostered by someone
+    if(state.data.roster.some(q=>samePlayer(q,d))||state.data.ir.some(q=>samePlayer(q,d))) continue;
+    if(r&&r.status&&/^(O|OUT|IR|NA|SUSP)/.test(r.status)) continue;    // not playing
+    const w=state.data.watch.find(q=>samePlayer(q,d));
+    const v=w?effPPG(w).val:neutralPPG(d);
+    if(!(v>0)) continue;
+    out.push({name:d.name,team:d.team,pos:d.pos.slice(),id:d.id,proj:v,watch:!!w,status:r&&r.status||''});
+  }
+  return out;
+}
+function planDays(){const ti=todayIndex();return weekDays(state.week).filter(i=>i>=ti);}
+function addsLeft(){const st=state.data.settings,used=state.data.adds[state.week]||0;return st.maxAdds?Math.max(0,st.maxAdds-used):null;}
+function buildStreamPlan(){
+  const slots=slotList(),D=planDays(),n=D.length,ti=todayIndex();
+  const base=effList(state.data.roster),FA=freeAgentPool();
+  const t0=(!state.data.settings.sameDay&&D[0]===ti)?1:0;              // first day a pickup can play
+  let left=addsLeft(); if(left===null) left=n;                          // no limit: at most one add a day per spot
+  const gone=new Map(),held=[],usedFA=new Set(),spots=[];
+  let openLeft=Math.max(0,openSpots());
+  const rosterOn=i=>base.filter((p,k)=>!gone.has(k)||i<gone.get(k)).concat(held.filter(h=>h.days.has(i)).map(h=>h.p));
+  const dt=ps=>{let t=0;solveDay(ps,slots).started.forEach(j=>t+=ps[j].proj||0);return t;};
+  const evalSpot=(k,mask)=>{   // k = roster index of the unlocked player, or -1 for an open spot; mask: FA index → last day index he may be held (-1 = never)
+    const u=k>=0?base[k]:null,K=left;
+    const valU=new Float64Array(n),vals=[];
+    const dayPs=D.map(i=>rosterOn(i).filter(p=>p!==u&&plays(p.team,i)));
+    const bt=dayPs.map(dt);
+    D.forEach((i,t)=>{if(u&&plays(u.team,i))valU[t]=dt(dayPs[t].concat([u]))-bt[t];});
+    const cand=[];
+    FA.forEach((f,j)=>{if(usedFA.has(j))return;const v=new Float64Array(n);let s=0;
+      const lim=mask&&mask.has(j)?mask.get(j):n;if(lim<0)return;
+      D.forEach((i,t)=>{if(t>=t0&&t<=lim&&plays(f.team,i)){v[t]=dt(dayPs[t].concat([f]))-bt[t];s+=v[t];}else if(t>lim)v[t]=-1e6;});
+      if(s>0.01){cand.push(j);vals.push(v);}});
+    const J=cand.length,NEG=-1e9;
+    // f[k][j]: best value with exactly k adds and FA j holding the spot; fu: still the original holder
+    let fu=0,f=[];for(let q=0;q<=K;q++)f.push(new Float64Array(J).fill(NEG));
+    const back=[];   // back[t][q][j] = -1 continue, -2 from original, else previous FA index
+    for(let t=0;t<n;t++){
+      const nf=[],bk=[];
+      for(let q=0;q<=K;q++){
+        // best and second-best previous holder at q-1 (to avoid "switching" to the same player)
+        let b1=NEG,b1j=-3,b2=NEG,b2j=-3;
+        if(q>=1){
+          if(q-1===0&&fu>b1){b1=fu;b1j=-2;}
+          const P=f[q-1];for(let j=0;j<J;j++){const v=P[j];if(v>b1){b2=b1;b2j=b1j;b1=v;b1j=j;}else if(v>b2){b2=v;b2j=j;}}
+        }
+        const row=new Float64Array(J),br=new Int32Array(J);
+        for(let j=0;j<J;j++){
+          let best=t>0?f[q][j]:NEG,from=-1;
+          if(q>=1&&t>=t0){const s=b1j===j?b2:b1,sj=b1j===j?b2j:b1j;if(s>best){best=s;from=sj;}}
+          row[j]=best<=NEG/2?NEG:best+vals[j][t];br[j]=from;
+        }
+        nf.push(row);bk.push(br);
+      }
+      f=nf;back.push(bk);fu+=valU[t];
+    }
+    let best=fu,bq=0,bj=-2;
+    for(let q=1;q<=K;q++)for(let j=0;j<J;j++)if(f[q][j]>best+1e-9){best=f[q][j];bq=q;bj=j;}
+    const keep=valU.reduce((x,y)=>x+y,0);
+    if(bj===-2) return {gain:0};
+    // walk back to segments
+    const holder=new Array(n);let q=bq,j=bj;
+    for(let t=n-1;t>=0;t--){holder[t]=j;const fr=back[t][q][j];if(fr===-1)continue;q--;j=fr;if(j===-2){for(let s=t-1;s>=0;s--)holder[s]=-2;break;}}
+    const segs=[];for(let t=0;t<n;t++){const h=holder[t]===undefined?-2:holder[t];if(!segs.length||segs[segs.length-1].h!==h)segs.push({h,from:t,to:t});else segs[segs.length-1].to=t;}
+    return {gain:best-keep,k,u,segs:segs.map(s=>({fa:s.h>=0?cand[s.h]:-1,from:s.from,to:s.to})),adds:bq};
+  };
+  /* A player you drop goes to waivers, so a chain can't re-add him later in the
+     week. If the best chain does (A → B → A), try both fixes, keeping A only
+     for his first stretch or not using him at all, and take the better. */
+  const planSpot=(k,mask,depth)=>{
+    const r=evalSpot(k,mask);if(!r.segs||depth>=6)return r;
+    const seen=new Map();let rep=null;
+    for(const s of r.segs){if(s.fa<0)continue;if(seen.has(s.fa)){rep={fa:s.fa,first:seen.get(s.fa)};break;}seen.set(s.fa,s);}
+    if(!rep)return r;
+    const m1=new Map(mask||[]);m1.set(rep.fa,rep.first.to);
+    const m2=new Map(mask||[]);m2.set(rep.fa,-1);
+    const a1=planSpot(k,m1,depth+1),a2=planSpot(k,m2,depth+1);
+    return (a1.gain||0)>=(a2.gain||0)?a1:a2;
+  };
+  while(left>0){
+    const tries=[];
+    if(openLeft>0) tries.push(planSpot(-1,null,0));
+    base.forEach((p,k)=>{if(state.data.roster[k].unlocked&&!gone.has(k))tries.push(planSpot(k,null,0));});
+    const best=tries.filter(x=>x.gain>0.05).sort((x,y)=>y.gain-x.gain)[0];
+    if(!best) break;
+    if(best.k>=0){const first=best.segs.find(s=>s.fa>=0);gone.set(best.k,D[first.from]);} else openLeft--;
+    const picks=best.segs.filter(s=>s.fa>=0).map(s=>{const p=FA[s.fa];usedFA.add(s.fa);const h={p,days:new Set(D.slice(s.from,s.to+1))};held.push(h);return {p,from:D[s.from],to:D[s.to],h};});
+    spots.push({drop:best.u?state.data.roster[best.k]:null,dropK:best.k,dropAt:best.k>=0?gone.get(best.k):null,picks,gain:best.gain,adds:best.adds});
+    left-=best.adds;
+  }
+  // final lineups to colour the strips and count starts
+  const startedOn=new Map();let ptsB=0,ptsA=0,stB=0,stA=0;
+  for(const i of D){
+    const psA=rosterOn(i).filter(p=>plays(p.team,i)),sa=solveDay(psA,slots).started,set=new Set();sa.forEach(j=>{set.add(psA[j]);ptsA+=psA[j].proj||0;});startedOn.set(i,set);stA+=sa.size;
+    const psB=base.filter(p=>plays(p.team,i)),sb=solveDay(psB,slots).started;sb.forEach(j=>ptsB+=psB[j].proj||0);stB+=sb.size;
+  }
+  return {D,spots,gain:ptsA-ptsB,starts:stA-stB,startedOn,fa:FA.length,t0,base};
+}
+function planStrip(P,p,heldDays){   // whole week; days he isn't on your roster are dashed
+  const days=weekDays(state.week);
+  return weekStrip(days.map(i=>{if(!heldDays.has(i))return plays(p.team,i)?'na':'off';if(!plays(p.team,i))return 'off';return P.startedOn.get(i)&&P.startedOn.get(i).has(p)?'st':'bn';}),days);
+}
+const PLAN={sig:'',P:null};
+function streamPlanHTML(){
+  const D=planDays(),st=state.data.settings,used=state.data.adds[state.week]||0,left=addsLeft();
+  let h='<div class="sect"><h2>Streaming plan · week '+state.week+'</h2></div>';
+  const adds='<div class="stepper" style="border:0;padding:0 0 10px"><div class="lbl"><b>Adds used this week</b><span>'+(st.maxAdds?(left+' of '+st.maxAdds+' left'):'No weekly limit (Settings → Pickups)')+'</span></div>'+
+    '<div class="ctl"><button data-udec aria-label="Fewer adds used">−</button><output>'+used+'</output><button data-uinc aria-label="More adds used">+</button></div></div>';
+  if(!D.length) return h+'<div class="card pad">'+adds+'<div class="empty-state" style="padding:6px 0">This week is over.</div></div>';
+  const sig=JSON.stringify([state.week,todayIndex(),state.data.roster,state.data.ir,state.data.watch,st,state.data.adds[state.week]||0,state.data.lg.asOf,state.data.lg.players.length,PPG_SIGNATURE()]);
+  if(PLAN.sig!==sig){PLAN.P=buildStreamPlan();PLAN.sig=sig;}
+  const P=PLAN.P,sg=x=>(x>=0?'+':'')+f1(x),dr=(a,b)=>a===b?DOW[dateOf(a).getDay()]:DOW[dateOf(a).getDay()]+'–'+DOW[dateOf(b).getDay()];
+  const nAdds=P.spots.reduce((s,x)=>s+x.adds,0);
+  h+='<div class="card pad">'+adds;
+  if(left===0) h+='<div class="empty-state" style="padding:6px 0">No adds left this week.</div></div>';
+  else if(!P.spots.length) h+='<div class="empty-state" style="padding:6px 0">'+(pickupMode()==='full'?'Your roster is full and nobody is unlocked. Unlock players you’d drop (Roster tab) to plan streams.':'No free agent improves your lineup over the rest of the week.')+'</div></div>';
+  else {
+    h+='<div class="stats" style="grid-template-columns:repeat(3,1fr);margin:0 -14px -14px;border-top:1px solid var(--line)">'+
+      '<div class="stat big"><b class="g">'+sg(P.gain)+'</b><span>Points</span></div><div class="stat"><b>'+(P.starts>=0?'+':'')+P.starts+'</b><span>Starts</span></div><div class="stat"><b>'+nAdds+'</b><span>Add'+(nAdds===1?'':'s')+'</span></div></div></div>';
+    P.spots.forEach((s,si)=>{
+      h+='<div class="sect"><h2>Spot '+(si+1)+' · '+(s.drop?'drop '+esc(s.drop.name):'open spot')+'</h2><span class="muted" style="font-size:13px;font-weight:700">'+sg(s.gain)+' pts</span></div><div class="card">';
+      if(s.drop){const keepDays=new Set(P.D.filter(i=>i<s.dropAt));const bp=P.base[s.dropK];
+        h+='<div class="prow"><div class="main"><div class="nm">'+esc(s.drop.name)+chips(s.drop.pos)+'</div><div class="sub">'+(keepDays.size?'Keep through '+DOW[dateOf(s.dropAt-1).getDay()]+', then drop':'Drop now')+' · '+esc(s.drop.team)+planStrip(P,bp,keepDays)+'</div></div><span class="badge">Drop</span></div>';}
+      s.picks.forEach(x=>{
+        const ix=state.data.watch.findIndex(q=>samePlayer(q,x.p));
+        h+='<div class="prow"><div class="main"><div class="nm">'+esc(x.p.name)+chips(x.p.pos)+(x.p.status?'<span class="chip st">'+esc(x.p.status)+'</span>':'')+'</div>'+
+          '<div class="sub"><b>Add '+DOW[dateOf(x.from).getDay()]+'</b>'+(x.to<P.D[P.D.length-1]?', drop after '+DOW[dateOf(x.to).getDay()]:', keep')+' · '+esc(x.p.team)+' · '+f2(x.p.proj)+'/gm'+planStrip(P,x.p,x.h.days)+'</div></div>'+
+          (ix>=0?'<span class="badge">Watchlist</span>':'<button class="btn" data-pwatch="'+esc(JSON.stringify({name:x.p.name,team:x.p.team,pos:x.p.pos,id:x.p.id}))+'">+ Watch</button>')+'</div>';
+      });
+      h+='</div>';
+    });
+    h+='<p class="note">Chains free agents through each spot: hold a player for his games, then swap him for the next one. '+P.fa+' free agents considered'+(state.data.lg.players.length?' (unowned in league data)':' — import league data to skip players who are already owned')+'. Only unlocked players are dropped. Dashed boxes are games while he isn’t on your roster.'+(P.t0?' Pickups start tomorrow.':'')+'</p>';
+  }
+  return h;
+}
+function wireStreamPlan(root){
+  const W=state.week,A=state.data.adds;
+  const u=root.querySelector('[data-udec]'),v=root.querySelector('[data-uinc]');
+  if(u)u.onclick=()=>{A[W]=Math.max(0,(A[W]||0)-1);if(!A[W])delete A[W];save();renderStreamers();};
+  if(v)v.onclick=()=>{A[W]=Math.min(20,(A[W]||0)+1);save();renderStreamers();};
+  root.querySelectorAll('[data-pwatch]').forEach(b=>b.onclick=()=>{const p=JSON.parse(b.dataset.pwatch);state.data.watch.push(cleanPlayer(p));state.data.watch=state.data.watch.filter(Boolean);save();b.outerHTML='<span class="badge">Watchlist</span>';toast(p.name+' added to watchlist');});
+}
+
 function renderStreamers(){
   const root=$('#tab-stream'),days=activeDays(),roster=effList(state.data.roster),slots=slotList();
   const rows=streamerTable(roster,days,slots),f=state.posFilter;
@@ -871,7 +1186,7 @@ function renderStreamers(){
   const nDrops=dropOptions().length,mode=pickupMode(),open=openSpots();
   const fb=['All','C','LW','RW','D'].map(p=>'<button class="fbtn'+(p===f?' on':'')+'" data-pf="'+p+'">'+p+'</button>').join('');
   const mg=[1,2,3].map(n=>'<button class="fbtn'+(n===state.minGames?' on':'')+'" data-mg="'+n+'">'+n+'+ games</button>').join('');
-  let h='<p class="note">Teams and positions that could start games for you, after reshuffling your lineup. Tap a row to see that team’s matching players.'+(roster.length?'':' Add your roster first; with an empty roster every slot is open.')+'</p>'+
+  let h=streamPlanHTML()+'<div class="sect"><h2>By team</h2></div><p class="note">Teams and positions that could start games for you, after reshuffling your lineup. Tap a row to see that team’s matching players.'+(roster.length?'':' Add your roster first; with an empty roster every slot is open.')+'</p>'+
         '<p class="note">'+(mode==='open'?'You have <b>'+open+' open roster spot'+(open===1?'':'s')+'</b>, so starts shown need no drop.'
           :mode==='net'?'Your roster is full. <b>Net</b> = starts gained after dropping the best of your '+nDrops+' unlocked player'+(nDrops===1?'':'s')+'; the lineup is re-optimized, so benched players sliding into the freed slot are counted. The “open spot” number is what he’d add without a drop.'
           :'<span class="w">Your roster is full.</span> Starts shown assume an open spot; unlock players on the Roster tab to see <b>net</b> starts after a drop.')+'</p>'+
@@ -884,15 +1199,17 @@ function renderStreamers(){
       const big=r.net?r.net.n:r.n;
       const sub=r.net?'<br>drop '+esc(r.net.name)+' · +'+r.n+' with an open spot':'';
       return '<div class="srow tap" data-team="'+r.team+'" data-elig="'+r.elig+'" role="button" tabindex="0"><div class="team">'+r.team+'</div>'+
-        '<div><div>'+head+'</div><div class="days">'+dayTxt+r.teamGames+' team games'+sub+'</div></div>'+
+        '<div><div>'+head+'</div><div class="days">'+dayTxt+r.teamGames+' team games'+sub+'</div>'+weekStrip(weekDays(state.week).map(i=>!plays(r.team,i)?'off':(r.days.includes(i)?'st':(days.includes(i)?'bn':'off'))),weekDays(state.week))+'</div>'+
         '<div class="gg">'+(big>=0?'+':'')+big+'<span>'+(r.net?'net':'starts')+'</span></div><span class="chev">›</span></div>';
     }).join('');
   };
+  h+='<div class="wklegend"><span class="st"></span>Adds a start<span class="bn"></span>Plays, no open slot<span class="off"></span>No game</div>';
   h+='<div class="sect"><h2>Skaters</h2></div><div class="card">'+list(sk,true)+'</div>';
   h+='<div class="sect"><h2>Goalies</h2></div><div class="card">'+list(gl,false)+'</div>';
   root.innerHTML=h;
   root.querySelectorAll('[data-pf]').forEach(b=>b.onclick=()=>{state.posFilter=b.dataset.pf;renderStreamers();});
   root.querySelectorAll('[data-mg]').forEach(b=>b.onclick=()=>{state.minGames=+b.dataset.mg;renderStreamers();});
+  wireStreamPlan(root);
   root.querySelectorAll('.srow.tap').forEach(el=>{
     const go=()=>openStreamerPlayers(el.dataset.team,el.dataset.elig.split('/'));
     el.onclick=go; el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};
@@ -911,7 +1228,11 @@ function openStreamerPlayers(team,elig){
   const days=activeDays(),slots=slotList(),roster=effList(state.data.roster);
   const isG=elig.includes('G');
   const drops=pickupMode()==='net'?dropOptions():[],base=drops.length?startsTotal(roster,days,slots):0,ptsBase=rangeTotal(roster,days,slots);
-  const list=DIR.filter(p=>p.team===team&&elig.every(e=>p.pos.includes(e)))
+  const haveLg=state.data.lg.players.length>0,mineN=myTeamName();
+  let hiddenOwned=0;
+  const list=DIR.map(d=>{const r=lgLookup(d);return r&&r.pos&&r.pos.length?Object.assign({},d,{pos:r.pos}):d;})
+    .filter(p=>p.team===team&&elig.every(e=>p.pos.includes(e)))
+    .filter(p=>{if(!haveLg||!state.faOnly)return true;const o=ownerOf(p);if(o&&o!==mineN&&!whereIs(p)){hiddenOwned++;return false;}return true;})
     .map(p=>{const pj=dirProj(p);const gain=gamesGained(roster,days,slots,team,p.pos).length;
       const net=drops.length?netGain(roster,days,slots,{team,pos:p.pos,proj:0},drops,base):null;
       // points he'd add: with the best drop when the roster is full, otherwise straight in
@@ -925,14 +1246,16 @@ function openStreamerPlayers(team,elig){
     .sort((x,y)=>y.score-x.score||(y.pts??-99)-(x.pts??-99)||y.gain-x.gain||x.p.name.localeCompare(y.p.name));
   const teamGames=days.filter(i=>plays(team,i)).length;
   let h='<h3>'+team+' · '+(isG?'Goalies':elig.join(' / '))+'</h3>'+
-    '<p class="note" style="margin-top:-6px">'+teamGames+' team games in the selected days. Starts shown use each player’s own eligibility'+(drops.length?'; net is after dropping your best unlocked candidate':'')+'. Check Yahoo to see who is actually a free agent.</p>';
+    '<p class="note" style="margin-top:-6px">'+teamGames+' team games in the selected days. Starts shown use each player’s own eligibility'+(drops.length?'; net is after dropping your best unlocked candidate':'')+'. '+(haveLg?'':'Check Yahoo to see who is actually a free agent.')+'</p>';
   if(!list.length) h+='<div class="empty-state">No '+team+' players in the directory match this eligibility.</div>';
   else h+='<div class="card">'+list.map((x,i)=>'<div class="prow"><div class="main"><div class="nm">'+esc(x.p.name)+chips(x.p.pos)+'</div>'+
-      '<div class="sub">'+(x.pj!=null?'<b>'+(x.pts>=0?'+':'')+f1(x.pts)+' pts</b> · '+f2(x.pj)+'/gm proj · ':'<span class="muted">no projection</span> · ')+(x.net?'<b>net '+(x.net.n>=0?'+':'')+x.net.n+'</b> (drop '+esc(x.net.name)+') · +'+x.gain+' with an open spot':'+'+x.gain+' start'+(x.gain===1?'':'s'))+(x.p.src==='ranks'?' · <span class="muted">not on NHL active roster</span>':'')+'</div></div>'+
-      (x.where?'<span class="badge">'+LIST_NAMES[x.where]+'</span>':'<button class="btn" data-watch="'+i+'">+ Watch</button>')+'</div>').join('')+'</div>';
+      '<div class="sub">'+(x.pj!=null?'<b>'+(x.pts>=0?'+':'')+f1(x.pts)+' pts</b> · '+f2(x.pj)+'/gm proj · ':'<span class="muted">no projection</span> · ')+(x.net?'<b>net '+(x.net.n>=0?'+':'')+x.net.n+'</b> (drop '+esc(x.net.name)+') · +'+x.gain+' with an open spot':'+'+x.gain+' start'+(x.gain===1?'':'s'))+(x.p.src==='ranks'?' · <span class="muted">not on NHL active roster</span>':'')+(x.where==='roster'?'':stripCandidate(roster,{name:x.p.name,team,pos:x.p.pos,proj:x.pj||0},slots))+'</div></div>'+
+      (x.where?'<span class="badge">'+LIST_NAMES[x.where]+'</span>':(ownerOf(x.p)&&ownerOf(x.p)!==mineN?'<span class="badge">'+esc(ownerOf(x.p))+'</span>':'<button class="btn" data-watch="'+i+'">+ Watch</button>'))+'</div>').join('')+'</div>';
+  if(haveLg) h+='<label class="toggle" style="margin-top:10px"><input type="checkbox" id="spFA"'+(state.faOnly?' checked':'')+'><span><b>Free agents only</b><br><small>'+(state.faOnly?hiddenOwned+' rostered player'+(hiddenOwned===1?'':'s')+' hidden':'Showing everyone, with owners')+' · league data'+(state.data.lg.asOf?' as of '+esc(state.data.lg.asOf):'')+'</small></span></label>';
   h+='<div class="actions"><button class="btn grow" id="spClose">Close</button></div>';
   openSheet(h);
   $('#spClose').onclick=closeSheet;
+  if($('#spFA')) $('#spFA').onchange=e=>{state.faOnly=e.target.checked;openStreamerPlayers(team,elig);};
   document.querySelectorAll('[data-watch]').forEach(b=>b.onclick=()=>{
     const x=list[+b.dataset.watch];
     state.data.watch.push({id:x.p.id||undefined,name:x.p.name,team:x.p.team,pos:x.p.pos.slice()});
@@ -966,20 +1289,150 @@ function playerStarts(roster,days,slots,name){   // starts for one player in the
   for(const i of days){const ps=roster.filter(p=>plays(p.team,i));const {started}=solveDay(ps,slots);started.forEach(j=>{if(ps[j].name===name)n++;});}
   return n;
 }
-const trade={give:-1,get:{name:'',team:'',pos:[],ppg:''},range:null};
+/* ===== Trade finder =====
+   Tries every 1-for-1 swap between your roster and each other team's active
+   roster (league data, IR excluded). Each side is re-optimized day by day over
+   the chosen range, so a trade scores well when it fixes a positional or
+   schedule logjam, not just when one player has a higher PPG.
+   Your side uses your own values (manual, start %); their side uses the
+   neutral source values (projection / Last 14 / Last 30) for both players.
+   Speed: adding a player can raise a day's best lineup by at most his PPG
+   (the lineup problem is a matroid), so each side's gain is capped by
+   "his PPG × his games − what losing the outgoing player costs". Swaps whose
+   cap is already below the bar are skipped without solving. */
+function dayTotal(roster,i,slots){const ps=roster.filter(p=>plays(p.team,i));let t=0;solveDay(ps,slots).started.forEach(j=>t+=ps[j].proj||0);return t;}
+function neutralPPG(p){const e=effPPG({name:p.name,team:p.team,pos:p.pos,id:p.id});return e.key?e.val:0;}
+function neutralMine(p){const e=effPPG({name:p.name,team:p.team,pos:p.pos,id:p.id});return e.key?e.val:effPPG(p).val;}   // no source number → your own value
+function leagueRoster(owner){
+  return state.data.lg.players.filter(r=>r.owner===owner&&!/^IR/.test(r.slot||'')).map(r=>{
+    const d=dirLookup(r);const pos=r.pos&&r.pos.length?r.pos:(d?d.pos:['C']);
+    const q={name:d&&!r.id?d.name:r.name,team:r.team,pos:pos.slice(),id:r.id||(d&&d.id)||undefined};
+    q.proj=neutralPPG(q);q.noVal=!effPPG(q).key;return q;});
+}
+function sideModel(roster,days,slots){   // per-day base totals and the cost of losing each player
+  const base=new Map();for(const i of days)base.set(i,dayTotal(roster,i,slots));
+  const gp=roster.map(p=>days.filter(i=>plays(p.team,i)));
+  const loss=roster.map((p,k)=>{const rest=roster.filter((_,x)=>x!==k);let l=0;for(const i of gp[k])l+=base.get(i)-dayTotal(rest,i,slots);return l;});
+  return {roster,base,gp,loss};
+}
+function swapGain(M,k,inP,days,slots){
+  const after=M.roster.filter((_,x)=>x!==k).concat([inP]),out=M.roster[k];let d=0;
+  for(const i of days){if(!plays(out.team,i)&&!plays(inP.team,i))continue;d+=dayTotal(after,i,slots)-M.base.get(i);}
+  return d;
+}
+const finder={team:'',mode:'both',unlockedOnly:false,myValues:false,results:null,sig:'',busy:false,progress:0,shown:25};
+function finderSig(range){return JSON.stringify([range.key,range.days.length,state.data.roster,state.data.settings,state.data.lg.asOf,state.data.lg.players.length,myTeamName(),finder.unlockedOnly,finder.myValues,PPG_SIGNATURE()]);}
+function PPG_SIGNATURE(){return state.data.proj.asOf+'|'+state.data.proj.list.length;}
+function runFinder(range,done){
+  const slots=slotList(),days=range.days,mine=myTeamName();
+  const myRaw=state.data.roster,me=sideModel(finder.myValues?effList(myRaw):myRaw.map(p=>Object.assign({},p,{proj:neutralMine(p)})),days,slots);
+  const teams=state.data.teams.map(t=>t.name).filter(n=>n!==mine&&state.data.lg.players.some(r=>r.owner===n));
+  const out=[];let ti=0,checked=0,solved=0;
+  finder.busy=true;finder.progress=0;
+  const step=()=>{
+    if(ti>=teams.length){finder.busy=false;finder.results={list:out,checked,solved,teams:teams.length,days:days.length};done();return;}
+    const owner=teams[ti++],them=sideModel(leagueRoster(owner),days,slots);
+    me.roster.forEach((give,k)=>{
+      if(finder.unlockedOnly&&!myRaw[k].unlocked) return;
+      const giveN=Object.assign({},give,{proj:neutralMine(myRaw[k])});          // how they'd value him
+      them.roster.forEach((get,j)=>{
+        checked++;
+        const known=['roster','ir','watch'].flatMap(l=>state.data[l]).find(q=>samePlayer(q,get));
+        const getMine=Object.assign({},get,{proj:finder.myValues&&known?effPPG(known).val:get.proj});   // how you value him
+        const capMe=getMine.proj*them.gp[j].length-me.loss[k];
+        const capThem=giveN.proj*me.gp[k].length-them.loss[j];
+        if(capMe<=0.05) return;
+        if(finder.mode==='both'&&capThem<0) return;
+        solved++;
+        const my=swapGain(me,k,getMine,days,slots); if(my<=0.05) return;
+        const th=swapGain(them,j,giveN,days,slots);
+        if(finder.mode==='both'&&th<0) return;
+        out.push({owner,k,give:myRaw[k],get,getPPG:getMine.proj,my,th});
+      });
+    });
+    finder.progress=ti/teams.length;
+    const bar=$('#fBar');if(bar)bar.style.width=Math.round(finder.progress*100)+'%';
+    const lbl=$('#fProg');if(lbl)lbl.textContent='Checking '+owner+'… '+ti+'/'+teams.length;
+    setTimeout(step,0);
+  };
+  step();
+}
+function finderHTML(range){
+  const mine=myTeamName(),haveLg=state.data.lg.players.length>0;
+  let h='<div class="sect"><h2>Trade finder</h2></div>';
+  if(!haveLg||!mine) return h+'<div class="card"><div class="empty-state">'+(!haveLg?'Import league data (Settings → Import) so the app knows every team’s roster.':'Mark your team in Settings → Teams.')+'</div></div>';
+  const others=state.data.teams.filter(t=>!t.mine&&state.data.lg.players.some(r=>r.owner===t.name));
+  h+='<div class="card pad">'+
+    '<div class="pair"><div class="field half"><label>Team</label><select id="fTeam"><option value="">All teams</option>'+others.map(t=>'<option'+(t.name===finder.team?' selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select></div>'+
+    '<div class="field half"><label>Show</label><select id="fMode"><option value="both"'+(finder.mode==='both'?' selected':'')+'>Both gain</option><option value="me"'+(finder.mode==='me'?' selected':'')+'>Helps me</option></select></div></div>'+
+    '<label class="toggle" style="margin:0 0 6px"><input type="checkbox" id="fUnl"'+(finder.unlockedOnly?' checked':'')+'><span><b>Only offer unlocked players</b></span></label>'+
+    '<label class="toggle" style="margin:0 0 10px"><input type="checkbox" id="fMine"'+(finder.myValues?' checked':'')+'><span><b>Use my manual values for my side</b><br><small>Off: every player is valued the same way, so a “win” comes from lineup fit and schedule. On: your manual numbers count, which favours dealing players you rate below their projection.</small></span></label>';
+  const fresh=finder.results&&finder.sig===finderSig(range);
+  if(finder.busy) h+='<div class="prog"><div id="fBar" style="width:'+Math.round(finder.progress*100)+'%"></div></div><div class="muted" id="fProg" style="font-size:13px;margin-top:6px">Checking…</div>';
+  else h+='<button class="btn primary" id="fGo" style="width:100%">'+(fresh?'Search again':'Find trades')+' · '+esc(range.label.toLowerCase())+'</button>';
+  h+='</div>';
+  if(!fresh||finder.busy){
+    if(!finder.busy) h+='<p class="note">Tries every 1-for-1 swap with each team over '+esc(range.label.toLowerCase())+' ('+range.days.length+' days), re-optimizing both lineups day by day. Players are valued with '+esc(PPG_SOURCES.find(s=>s.key===state.data.settings.ppgSource).label.toLowerCase())+' numbers'+(finder.myValues?' (your manual values on your side)':'')+'. Checking a trade below uses your own values.</p>';
+    return h;
+  }
+  const R=finder.results;
+  let list=R.list.filter(x=>!finder.team||x.owner===finder.team);
+  list.sort(finder.mode==='both'?(x,y)=>Math.min(y.my,y.th)-Math.min(x.my,x.th)||y.my-x.my:(x,y)=>y.my-x.my);
+  const sg=x=>(x>=0?'+':'')+f1(x);
+  h+='<p class="note">'+list.length+' prospect'+(list.length===1?'':'s')+(finder.team?' with '+esc(finder.team):' across '+R.teams+' teams')+' · '+R.checked+' swaps checked. '+(finder.mode==='both'?'Sorted by the smaller of the two gains, so the most balanced wins come first.':'Sorted by your gain.')+' Tap one to see it week by week.</p>';
+  if(!list.length) return h+'<div class="card"><div class="empty-state">No 1-for-1 swap '+(finder.mode==='both'?'helps both teams':'helps you')+' over this range.'+(finder.mode==='both'?' Try “Helps me”.':'')+'</div></div>';
+  const row=x=>'<div class="prow" data-prosp="'+R.list.indexOf(x)+'" style="cursor:pointer"><div class="main">'+
+      '<div class="nm">'+esc(x.give.name)+' <span class="muted">→</span> '+esc(x.get.name)+chips(x.get.pos)+statusBadge(x.get)+'</div>'+
+      '<div class="sub">you <b class="'+(x.my>0?'g':'')+'">'+sg(x.my)+'</b> · them <b class="'+(x.th>0?'g':x.th<0?'w':'')+'">'+sg(x.th)+'</b> pts</div></div>'+
+      '<div class="num"><b class="g">'+sg(x.my)+'</b><span>pts</span></div></div>';
+  if(!finder.team){   // best few with each team, teams ordered by their best prospect
+    const by=new Map();for(const x of list){if(!by.has(x.owner))by.set(x.owner,[]);by.get(x.owner).push(x);}
+    for(const [owner,xs] of by) h+='<div class="sect"><h2>'+esc(owner)+' · '+xs.length+'</h2>'+(xs.length>3?'<button class="btn" data-fteam="'+esc(owner)+'">All '+xs.length+'</button>':'')+'</div><div class="card">'+xs.slice(0,3).map(row).join('')+'</div>';
+    return h;
+  }
+  h+='<div class="card">'+list.slice(0,finder.shown).map((x,i)=>{
+    return '<div class="prow" data-prosp="'+R.list.indexOf(x)+'" style="cursor:pointer"><div class="main">'+
+      '<div class="nm">'+esc(x.give.name)+' <span class="muted">→</span> '+esc(x.get.name)+chips(x.get.pos)+statusBadge(x.get)+'</div>'+
+      '<div class="sub">'+esc(x.owner)+' · you <b class="'+(x.my>0?'g':'')+'">'+sg(x.my)+'</b> · them <b class="'+(x.th>0?'g':x.th<0?'w':'')+'">'+sg(x.th)+'</b> pts</div></div>'+
+      '<div class="num"><b class="g">'+sg(x.my)+'</b><span>pts</span></div></div>';}).join('')+'</div>';
+  if(list.length>finder.shown) h+='<div class="actions"><button class="btn grow" id="fMore">Show more ('+(list.length-finder.shown)+')</button></div>';
+  return h;
+}
+function wireFinder(range){
+  if(!$('#fTeam')) return;
+  $('#fTeam').onchange=e=>{finder.team=e.target.value;finder.shown=25;renderTrades();};
+  $('#fMode').onchange=e=>{finder.mode=e.target.value;finder.results=null;finder.shown=25;renderTrades();};
+  $('#fUnl').onchange=e=>{finder.unlockedOnly=e.target.checked;finder.results=null;renderTrades();};
+  $('#fMine').onchange=e=>{finder.myValues=e.target.checked;finder.results=null;renderTrades();};
+  if($('#fGo')) $('#fGo').onclick=()=>{finder.shown=25;const sig=finderSig(range);runFinder(range,()=>{finder.sig=sig;if(state.tab==='trades')renderTrades();});renderTrades();};
+  if($('#fMore')) $('#fMore').onclick=()=>{finder.shown+=25;renderTrades();};
+  document.querySelectorAll('[data-fteam]').forEach(b=>b.onclick=()=>{finder.team=b.dataset.fteam;finder.shown=25;renderTrades();window.scrollTo(0,0);});
+  document.querySelectorAll('[data-prosp]').forEach(el=>el.onclick=()=>{
+    const x=finder.results.list[+el.dataset.prosp],k=state.data.roster.findIndex(p=>samePlayer(p,x.give));
+    if(k<0){toast('He’s no longer on your roster');return;}
+    trade.mine=finder.myValues;trade.give=k;trade.get={name:x.get.name,team:x.get.team,pos:x.get.pos.slice(),ppg:String(Math.round(x.getPPG*100)/100)};
+    renderTrades();const c=$('#tCheck');if(c)c.scrollIntoView({behavior:'smooth',block:'start'});
+  });
+}
+
+const trade={give:-1,get:{name:'',team:'',pos:[],ppg:''},range:null,mine:true};
 function renderTrades(){
   const root=$('#tab-trades'),slots=slotList(),st=state.data.settings;
-  const rosterRaw=state.data.roster,roster=effList(rosterRaw);
+  const rosterRaw=state.data.roster,roster=trade.mine?effList(rosterRaw):rosterRaw.map(p=>Object.assign({},p,{proj:neutralMine(p)}));
   const ranges=tradeRanges();
   if(!ranges.some(r=>r.key===trade.range)) trade.range=ranges[0].key;
   const g=trade.get;
-  let h='<div class="sect"><h2>Trade</h2></div><div class="card pad">'+
+  const rangeT=ranges.find(r=>r.key===trade.range);
+  let h=(ranges.length>1?'<div class="seg" id="tRange" style="margin:4px 0 0">'+ranges.map(r=>'<button data-tr="'+r.key+'" class="'+(r.key===trade.range?'on':'')+'">'+r.label+'</button>').join('')+'</div>':'')+
+    finderHTML(rangeT)+
+    '<div class="sect" id="tCheck"><h2>Check a trade</h2></div><div class="card pad">'+
     '<div class="field"><label>You give</label><select id="tGive"><option value="-1">Choose a roster player…</option>'+
       rosterRaw.map((p,k)=>'<option value="'+k+'"'+(k===trade.give?' selected':'')+'>'+esc(p.name)+' · '+esc(p.team)+' · '+p.pos.join('/')+'</option>').join('')+'</select></div>'+
     '<div class="field ac"><label>You get</label><input id="tName" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Start typing a player’s name" value="'+esc(g.name)+'"><div class="sugg hidden" id="tSugg" role="listbox"></div></div>'+
     '<div class="pair"><div class="field half"><label>Team</label><select id="tTeam"><option value="">—</option>'+TEAMS.map(t=>'<option'+(t===g.team?' selected':'')+'>'+t+'</option>').join('')+'</select></div>'+
       '<div class="field half"><label>His PPG (optional)</label><input id="tPPG" type="number" inputmode="decimal" step="0.01" placeholder="—" value="'+esc(g.ppg)+'"></div></div>'+
-    '<div class="field" style="margin:0"><label>His positions</label><div class="posbtns">'+POSITIONS.map(x=>'<button type="button" data-tpos="'+x+'" class="'+(g.pos.includes(x)?'on':'')+'">'+x+'</button>').join('')+'</div></div>'+
+    '<div class="field"><label>His positions</label><div class="posbtns">'+POSITIONS.map(x=>'<button type="button" data-tpos="'+x+'" class="'+(g.pos.includes(x)?'on':'')+'">'+x+'</button>').join('')+'</div></div>'+
+    '<div class="field" style="margin:0"><label>Value your players with</label><div class="seg" style="margin:0"><button data-tmine="1" class="'+(trade.mine?'on':'')+'">My values</button><button data-tmine="0" class="'+(trade.mine?'':'on')+'">Same as everyone</button></div></div>'+
     '</div>';
   if(!st.playoffs.on) h+='<p class="note">Tip: turn on Playoffs in Settings to compare your playoff weeks separately.</p>';
   else if(!st.playoffs.weeks.length) h+='<p class="note">Playoffs are on but no weeks are selected yet (Settings → Playoffs).</p>';
@@ -992,8 +1445,7 @@ function renderTrades(){
     const ppg=numOrNull(g.ppg);
     const incoming={name:g.name||'Incoming player',team:g.team,pos:g.pos,proj:ppg==null?0:ppg};
     const after=roster.filter((_,x)=>x!==trade.give).concat([incoming]);
-    h+='<div class="seg" id="tRange">'+ranges.map(r=>'<button data-tr="'+r.key+'" class="'+(r.key===trade.range?'on':'')+'">'+r.label+'</button>').join('')+'</div>';
-    const range=ranges.find(r=>r.key===trade.range);
+    const range=rangeT;
     if(!range.days.length){
       h+='<div class="card" style="margin-top:12px"><div class="empty-state">No days left in this range.</div></div>';
     } else {
@@ -1004,6 +1456,8 @@ function renderTrades(){
       const giveGP=range.days.filter(i=>plays(giveP.team,i)).length,getGP=range.days.filter(i=>plays(incoming.team,i)).length;
       const d=sa-sb,showPts=ppg!=null;
       const sg=x=>(x>0?'+':'')+x, cls=x=>x>0?'g':x<0?'w':'';
+      const ow=ownerOf({name:incoming.name,team:incoming.team,pos:incoming.pos});
+      if(ow) h+='<p class="note" style="margin-top:12px">'+esc(incoming.name)+' is on <b>'+esc(ow)+'</b>.</p>';
       h+='<div class="card" style="margin-top:12px"><div class="stats" style="grid-template-columns:repeat('+(showPts?3:2)+',1fr)">'+
         '<div class="stat big"><b class="'+cls(d)+'">'+sg(d)+'</b><span>Net starts</span></div>'+
         '<div class="stat"><b>'+sb+' → '+sa+'</b><span>Team starts</span></div>'+
@@ -1024,7 +1478,9 @@ function renderTrades(){
   $('#tPPG').onchange=e=>{g.ppg=e.target.value;renderTrades();};
   $('#tName').onchange=e=>{g.name=e.target.value.trim();};
   root.querySelectorAll('[data-tpos]').forEach(b=>b.onclick=()=>{const x=b.dataset.tpos;g.pos=g.pos.includes(x)?g.pos.filter(y=>y!==x):POSITIONS.filter(y=>y===x||g.pos.includes(y));renderTrades();});
-  root.querySelectorAll('[data-tr]').forEach(b=>b.onclick=()=>{trade.range=b.dataset.tr;renderTrades();});
+  root.querySelectorAll('[data-tr]').forEach(b=>b.onclick=()=>{if(finder.busy)return;trade.range=b.dataset.tr;renderTrades();});
+  wireFinder(rangeT);
+  root.querySelectorAll('[data-tmine]').forEach(b=>b.onclick=()=>{trade.mine=b.dataset.tmine==='1';renderTrades();});
   wireAutocomplete($('#tName'),$('#tSugg'),d=>{$('#tName').blur();   // let the field's own change event fire first, then apply the pick
     g.name=d.name;g.team=d.team;g.pos=d.pos.slice();
     const known=['roster','ir','watch'].flatMap(l=>state.data[l]).find(q=>samePlayer(q,d));   // reuse his PPG if he's on your lists
@@ -1051,24 +1507,28 @@ function effectiveProjections(){
 }
 function buildSave(kind){
   const st=state.data.settings,sec={};
-  if(kind==='full'||kind==='league') sec.league={name:st.leagueName,slots:{...st.slots},spots:{...st.spots},playoffs:{on:st.playoffs.on,weeks:st.playoffs.weeks.slice()}};
+  if(kind==='full'||kind==='league') sec.league={name:st.leagueName,slots:{...st.slots},spots:{...st.spots},playoffs:{on:st.playoffs.on,weeks:st.playoffs.weeks.slice()},maxAdds:st.maxAdds,sameDay:st.sameDay};
+  if((kind==='full'||kind==='league')&&state.data.teams.length) sec.teams=state.data.teams.map(t=>({...t}));
+  if((kind==='full'||kind==='leaguedata')&&state.data.lg.players.length) sec.leagueData={asOf:state.data.lg.asOf,players:state.data.lg.players};
   if(kind==='full'||kind==='team') sec.team={roster:state.data.roster,ir:state.data.ir,watch:state.data.watch};
+  if((kind==='full'||kind==='team')&&Object.keys(state.data.stash).length) sec.team.otherTeams=state.data.stash;
   if(kind==='full'||kind==='projections') sec.projections={asOf:state.data.proj.asOf||todayStamp(),players:effectiveProjections()};
   if(kind==='full') sec.prefs={ppgSource:st.ppgSource,useManual:st.useManual,yahooLeagueId:st.yahooLeagueId};
   return {app:SAVE_APP,format:SAVE_FORMAT,kind,savedAt:new Date().toISOString(),sections:sec};
 }
 function csvCell(v){const s=v==null?'':String(v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
-const CSV_COLS=['Player','Team','Positions','Projected','Manual','Start %','List','Unlocked','Player ID'];
+const CSV_COLS=['Player','Team','Positions','Projected','Manual','Start %','List','Unlocked','Fantasy Team','Roster Slot','Status','Last 14','Last 30','Player ID'];
 function buildCsv(){
   const rows=[],seen=new Set();
   const listOf={roster:'Roster',ir:'IR',watch:'Watch'};
   for(const l of ['roster','ir','watch']) for(const p of state.data[l]){
     const d=dirLookup(p);
-    rows.push([p.name,p.team,p.pos.join(', '),p.derived!=null?p.derived:(d?dirProj(d):projOf(p)),p.manual,p.start,listOf[l],p.unlocked?'Y':'',p.id||(d&&d.id)||'']);
+    const g=lgLookup(p)||{};
+    rows.push([p.name,p.team,p.pos.join(', '),p.derived!=null?p.derived:(d?dirProj(d):projOf(p)),p.manual,p.start,listOf[l],p.unlocked?'Y':'',g.owner,g.slot,g.status,p.l14!=null?p.l14:g.l14,p.l30!=null?p.l30:g.l30,p.id||(d&&d.id)||'']);
     if(d) seen.add(d); 
   }
   const rest=DIR.filter(d=>!seen.has(d)).sort((x,y)=>x.team.localeCompare(y.team)||x.name.localeCompare(y.name));
-  for(const d of rest) rows.push([d.name,d.team,d.pos.join(', '),dirProj(d),'','','','',d.id||'']);
+  for(const d of rest){const g=lgLookup(d)||{};rows.push([d.name,d.team,(g.pos||d.pos).join(', '),dirProj(d),'','','','',g.owner,g.slot,g.status,g.l14,g.l30,d.id||'']);}
   return '﻿'+[CSV_COLS].concat(rows).map(r=>r.map(csvCell).join(',')).join('\r\n');   // BOM so Excel keeps accents
 }
 function download(name,text,type){
@@ -1105,14 +1565,20 @@ function readCsvSave(text){
   const head=rows[0].map(h=>h.trim().toLowerCase());
   const col=(...names)=>head.findIndex(h=>names.some(n=>h===n||h.startsWith(n)));
   const c={name:col('player','name'),team:col('team'),pos:col('positions','position','pos'),proj:col('projected','projection','proj'),
-           man:col('manual'),start:col('start'),list:col('list'),unl:col('unlocked'),id:col('player id','id')};
+           man:col('manual'),start:col('start'),list:col('list'),unl:col('unlocked'),id:col('player id','id'),
+           owner:col('fantasy team','owner'),slot:col('roster slot','slot'),status:col('status','injury'),l14:col('last 14','l14'),l30:col('last 30','l30')};
   if(c.name<0||c.team<0) return null;
-  const proj=[],lists={roster:[],ir:[],watch:[]};let skipped=0;
+  const proj=[],lists={roster:[],ir:[],watch:[]},lgp=[],owners=[];let skipped=0;
   for(const r of rows.slice(1)){
     const g=i=>i>=0?String(r[i]??'').trim():'';
     const name=g(c.name),team=normTeam(g(c.team)); if(!name){continue;} if(!team){skipped++;continue;}
     const id=Number(g(c.id))||undefined, pv=numOrNull(g(c.proj));
     if(pv!==null) proj.push({id,name,team,ppg:pv});
+    const own=g(c.owner),slot=g(c.slot),stt=g(c.status),a14=numOrNull(g(c.l14)),a30=numOrNull(g(c.l30));
+    if(own||slot||stt||a14!==null||a30!==null){
+      lgp.push({id,name,team,pos:g(c.pos),owner:own,slot,status:stt,l14:a14,l30:a30});
+      if(own&&!FA_WORDS.test(own)&&!owners.includes(own)) owners.push(own);
+    }
     const lv=g(c.list).toLowerCase(), l=lv.startsWith('ros')?'roster':lv==='ir'||lv.startsWith('ir')||lv.startsWith('inj')?'ir':lv.startsWith('wat')?'watch':null;
     if(l){
       let pos=parsePositions(g(c.pos)); if(!pos.length){const d=dirLookup({id,name,team});pos=d?d.pos.slice():['C'];}
@@ -1124,6 +1590,8 @@ function readCsvSave(text){
   }
   const sec={};
   if(proj.length) sec.projections={asOf:todayStamp(),players:proj};
+  if(lgp.length) sec.leagueData={asOf:todayStamp(),players:lgp};
+  if(owners.length) sec.teams=owners.map(name=>({name}));
   if(lists.roster.length+lists.ir.length+lists.watch.length) sec.team=lists;
   return {sections:sec,kind:'csv',skipped};
 }
@@ -1145,12 +1613,14 @@ const SECTION_INFO={
   league:{label:'League settings',sum:s=>{const n=Object.values(s.slots||{}).reduce((a,b)=>a+(+b||0),0);return (s.name?esc(s.name)+' · ':'')+n+' lineup slots · '+((s.spots&&s.spots.bench)??'?')+' bench'+(s.playoffs&&s.playoffs.on?' · playoffs wk '+(s.playoffs.weeks||[]).join(', '):'');}},
   team:{label:'My team',sum:s=>(s.roster||[]).length+' roster · '+(s.ir||[]).length+' IR · '+(s.watch||[]).length+' watchlist',warn:'Replaces your roster, IR and watchlist'},
   projections:{label:'Projections',sum:s=>(s.players||[]).length+' players'+(s.asOf?' · as of '+esc(s.asOf):''),warn:'Replaces the projections used on this device'},
-  prefs:{label:'Preferences',sum:s=>'PPG source, manual override, Yahoo league ID'}
+  prefs:{label:'Preferences',sum:s=>'PPG source, manual override, Yahoo league ID'},
+  teams:{label:'Teams',sum:s=>s.length+' teams: '+s.slice(0,4).map(t=>esc(t.name||t)).join(', ')+(s.length>4?'…':''),warn:'Replaces your team list (your pick of “my team” is kept by name)'},
+  leagueData:{label:'League player data',sum:s=>{const p=s.players||[];return p.length+' players · '+p.filter(r=>r.owner&&!FA_WORDS.test(r.owner)).length+' owned'+(p.some(r=>r.l14!=null||r.l30!=null)?' · with Last 14/30':'')+(s.asOf?' · as of '+esc(s.asOf):'');},warn:'Replaces owners, roster slots, status and Last 14/30'}
 };
 function openImport(text,fname){
   const r=readSave(text);
   if(!r||!Object.keys(r.sections).length){toast('Nothing the app can read in '+(fname||'that file'));return;}
-  const keys=['league','team','projections','prefs'].filter(k=>r.sections[k]);
+  const keys=['league','teams','leagueData','team','projections','prefs'].filter(k=>r.sections[k]);
   openSheet('<h3>Import</h3><p class="note" style="margin-top:-6px">'+esc(fname||'')+(r.savedAt?' · saved '+esc(new Date(r.savedAt).toLocaleString()):'')+(r.skipped?' · '+r.skipped+' rows skipped (unknown team)':'')+'. Choose what to apply:</p>'+
     '<div class="card">'+keys.map(k=>'<label class="toggle prow" style="cursor:pointer"><input type="checkbox" data-sec="'+k+'" checked><span><b>'+SECTION_INFO[k].label+'</b><br><small>'+SECTION_INFO[k].sum(r.sections[k])+(SECTION_INFO[k].warn?' · '+SECTION_INFO[k].warn:'')+'</small></span></label>').join('')+'</div>'+
     '<div class="actions"><button class="btn primary grow" id="imGo">Apply</button><button class="btn" id="imCancel">Cancel</button></div>');
@@ -1165,8 +1635,9 @@ function openImport(text,fname){
 function applySections(sec,pick,fname){
   const cur=state.data, st=cur.settings;
   if(pick.includes('league')){
-    const n=normalize({settings:{leagueName:sec.league.name,slots:sec.league.slots,spots:sec.league.spots,playoffs:sec.league.playoffs}});
+    const n=normalize({settings:{leagueName:sec.league.name,slots:sec.league.slots,spots:sec.league.spots,playoffs:sec.league.playoffs,maxAdds:sec.league.maxAdds,sameDay:sec.league.sameDay}});
     st.leagueName=n.settings.leagueName;st.slots=n.settings.slots;st.spots=n.settings.spots;st.playoffs=n.settings.playoffs;
+    if(sec.league.maxAdds!=null)st.maxAdds=n.settings.maxAdds; if(sec.league.sameDay!=null)st.sameDay=n.settings.sameDay;
   }
   if(pick.includes('prefs')){
     const n=normalize({settings:{ppgSource:sec.prefs.ppgSource,useManual:sec.prefs.useManual,yahooLeagueId:sec.prefs.yahooLeagueId}});
@@ -1175,6 +1646,16 @@ function applySections(sec,pick,fname){
   if(pick.includes('team')){
     const n=normalize({roster:sec.team.roster,ir:sec.team.ir,watch:sec.team.watch});
     cur.roster=n.roster;cur.ir=n.ir;cur.watch=n.watch;
+    if(sec.team.otherTeams) cur.stash=cleanStash(sec.team.otherTeams);
+  }
+  if(pick.includes('teams')){
+    const mine=myTeamName();
+    cur.teams=cleanTeams(sec.teams).map(t=>(mine&&t.name===mine?{name:t.name,mine:true}:t));
+  }
+  if(pick.includes('leagueData')){
+    cur.lg={asOf:String(sec.leagueData.asOf||todayStamp()),source:String(fname||''),players:cleanLgPlayers(sec.leagueData.players)};LG_IDX=null;
+    const have=new Set(cur.teams.map(t=>t.name.toLowerCase()));   // any owner not yet in Teams gets added
+    for(const o of new Set(cur.lg.players.map(r=>r.owner).filter(Boolean))) if(!have.has(o.toLowerCase())){cur.teams.push({name:o});have.add(o.toLowerCase());}
   }
   if(pick.includes('projections')){
     cur.proj={asOf:String(sec.projections.asOf||todayStamp()),source:String(fname||''),list:cleanProjList(sec.projections.players)};
@@ -1188,6 +1669,10 @@ function renderSettings(){
   const first=dateOf(0),last=dateOf(SCHED.weeks.length-1);
   let h='<div class="sect"><h2>League</h2></div><div class="card pad">'+
     '<div class="field" style="margin:0"><label>League name (optional)</label><input id="sLeague" autocomplete="off" placeholder="e.g. Office league" value="'+esc(st.leagueName)+'"></div></div>'+
+    '<div class="sect"><h2>Teams · '+state.data.teams.length+'</h2></div><div class="card">'+
+      (state.data.teams.length?state.data.teams.map((t,i)=>'<div class="stepper"><input type="radio" name="mineTeam" class="tmine" data-mine="'+i+'"'+(t.mine?' checked':'')+' aria-label="Show this team"><input class="tname" data-tname="'+i+'" value="'+esc(t.name)+'" aria-label="Team name">'+(t.mine?'<span class="badge">Showing</span>':state.data.stash[t.name]?'<span class="badge" title="Roster saved on this device">Saved</span>':'')+'<button class="btn" data-tdel="'+i+'" aria-label="Remove '+esc(t.name)+'">×</button></div>').join(''):'<div class="empty-state">No teams yet. Add your league’s teams, or import league data.</div>')+
+      '<div class="stepper"><input class="tname" id="tNew" placeholder="Add a team name"><button class="btn" id="tAdd">Add</button></div>'+
+    '</div><p class="note">Tap a circle to show that team on the Roster tab (and use it in Streamers and Trades). Each team keeps its own roster, locks and manual values here; the watchlist is shared. The Fantasy Team column in league data is matched to these names.'+(state.data.lg.players.length?' League data: '+state.data.lg.players.length+' players'+(state.data.lg.asOf?' as of '+esc(state.data.lg.asOf):'')+' · <a href="#" id="lgClear">clear</a>':'')+'</p>'+
     '<div class="sect"><h2>Lineup slots · '+total+' per day</h2></div><div class="card">'+
     SLOT_TYPES.map(t=>'<div class="stepper"><div class="lbl"><b>'+t.label+'</b><span>'+t.desc+(t.elig.length>1?' ('+t.elig.join(', ')+')':'')+'</span></div>'+
       '<div class="ctl"><button data-dec="'+t.key+'" aria-label="Fewer '+t.label+'">−</button><output>'+(st.slots[t.key]||0)+'</output><button data-inc="'+t.key+'" aria-label="More '+t.label+'">+</button></div></div>').join('')+
@@ -1196,6 +1681,11 @@ function renderSettings(){
     SPOT_TYPES.map(t=>'<div class="stepper"><div class="lbl"><b>'+t.label+'</b><span>'+t.desc+'</span></div>'+
       '<div class="ctl"><button data-sdec="'+t.key+'" aria-label="Fewer '+t.label+'">−</button><output>'+(st.spots[t.key]||0)+'</output><button data-sinc="'+t.key+'" aria-label="More '+t.label+'">+</button></div></div>').join('')+
     '</div><p class="note">Roster limit = starting slots + bench. When you’re under it, pickups need no drop; at the limit, the Streamers tab shows net starts after your best drop.</p>'+
+    '<div class="sect"><h2>Pickups</h2></div><div class="card">'+
+      '<div class="stepper"><div class="lbl"><b>Max adds per week</b><span>'+(st.maxAdds?'The streaming plan never uses more than this':'No limit')+'</span></div>'+
+      '<div class="ctl"><button data-adec aria-label="Fewer adds">−</button><output>'+(st.maxAdds||'∞')+'</output><button data-ainc aria-label="More adds">+</button></div></div>'+
+      '<label class="toggle prow" style="cursor:pointer"><input type="checkbox" id="sSameDay"'+(st.sameDay?' checked':'')+'><span><b>Pickups can play the same day</b><br><small>On: a free agent added today can start today (before his game). Off: plans start pickups tomorrow.</small></span></label>'+
+    '</div>'+
 
     '<div class="sect"><h2>Playoffs</h2></div><div class="card pad">'+
     '<label class="toggle"><input type="checkbox" id="sPlayoffs"'+(st.playoffs.on?' checked':'')+'><span><b>My league has playoffs</b><br><small>Tap the fantasy weeks that are playoff weeks. The Trades tab then splits the regular season from the playoffs.</small></span></label>'+
@@ -1215,9 +1705,9 @@ function renderSettings(){
     '<div class="card pad">'+
       '<div class="actions" style="margin:0 0 10px"><button class="btn primary grow" data-dl="full">Download full save</button></div>'+
       '<div class="field" style="margin-bottom:8px"><label>Or just one part</label></div>'+
-      '<div class="actions" style="margin:0 0 10px"><button class="btn grow" data-dl="league">League settings</button><button class="btn grow" data-dl="team">My team</button><button class="btn grow" data-dl="projections">Projections</button></div>'+
+      '<div class="actions" style="margin:0 0 10px"><button class="btn grow" data-dl="league">League settings</button><button class="btn grow" data-dl="team">My team</button><button class="btn grow" data-dl="projections">Projections</button>'+(state.data.lg.players.length?'<button class="btn grow" data-dl="leaguedata">League data</button>':'')+'</div>'+
       '<div class="actions" style="margin:0 0 4px"><button class="btn grow" data-dl="csv">Player sheet (CSV)</button></div>'+
-      '<p class="note" style="margin:4px 0 12px">The player sheet lists every player with the columns the app accepts (Projected, Manual, Start %, List, Unlocked), filled with your current values. Edit it in Excel and import it back.</p>'+
+      '<p class="note" style="margin:4px 0 12px">The player sheet lists every player with every column the app accepts: Projected, Manual, Start %, List and Unlocked, plus the league columns Fantasy Team, Roster Slot, Status, Last 14 and Last 30. It’s filled with your current values; edit it in Excel and import it back. The Yahoo sync will write this same sheet.</p>'+
       '<div class="actions" style="margin:0"><button class="btn primary grow" id="sImport">Import a file…</button><button class="btn" id="sImportText">Paste text</button></div>'+
       '<input type="file" id="sFile" accept=".json,.csv,.txt,application/json,text/csv,text/plain" class="hidden">'+
     '</div>'+
@@ -1256,6 +1746,20 @@ function renderSettings(){
   $('#sDefaults').onclick=e=>{e.preventDefault();st.slots={...DEFAULT_SLOTS};save();renderSettings();toast('Lineup slots reset');};
   $('#sPaste').onclick=()=>openPaste('roster');
   root.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>downloadSave(b.dataset.dl));
+  root.querySelector('[data-adec]').onclick=()=>{st.maxAdds=Math.max(0,(st.maxAdds||0)-1);save();renderSettings();};
+  root.querySelector('[data-ainc]').onclick=()=>{st.maxAdds=Math.min(20,(st.maxAdds||0)+1);save();renderSettings();};
+  $('#sSameDay').onchange=e=>{st.sameDay=e.target.checked;save();};
+  const T=state.data.teams;
+  root.querySelectorAll('[data-mine]').forEach(r=>r.onchange=()=>{switchTeam(+r.dataset.mine);renderAll();});
+  root.querySelectorAll('[data-tname]').forEach(inp=>inp.onchange=()=>{const i=+inp.dataset.tname,old=T[i].name,nw=inp.value.trim();
+    if(!nw||T.some((t,j)=>j!==i&&t.name.toLowerCase()===nw.toLowerCase())){inp.value=old;toast('Name is empty or already used');return;}
+    T[i].name=nw;state.data.lg.players.forEach(r=>{if(r.owner===old)r.owner=nw;});
+    if(state.data.stash[old]){state.data.stash[nw]=state.data.stash[old];delete state.data.stash[old];}save();});
+  root.querySelectorAll('[data-tdel]').forEach(b=>b.onclick=()=>{const i=+b.dataset.tdel;if(confirm('Remove '+T[i].name+'?')){delete state.data.stash[T[i].name];T.splice(i,1);save();renderSettings();}});
+  const addT=()=>{const v=$('#tNew').value.trim();if(!v)return;if(T.some(t=>t.name.toLowerCase()===v.toLowerCase())){toast('Already added');return;}
+    T.push(T.length?{name:v}:{name:v,mine:true});save();renderSettings();setTimeout(()=>{try{$('#tNew').focus();}catch(e){}},30);};
+  $('#tAdd').onclick=addT;$('#tNew').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addT();}};
+  if($('#lgClear')) $('#lgClear').onclick=e=>{e.preventDefault();if(confirm('Clear league player data (owners, status, Last 14/30) on this device?')){state.data.lg={asOf:'',source:'',players:[]};LG_IDX=null;save();renderAll();}};
   $('#sImport').onclick=()=>$('#sFile').click();
   $('#sFile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>openImport(String(r.result),f.name);r.onerror=()=>toast('Could not read that file');r.readAsText(f);e.target.value='';};
   $('#sImportText').onclick=()=>{
@@ -1289,7 +1793,7 @@ function wireAutocomplete(input,box,onPick){
   let items=[],active=-1;
   const close=()=>{box.classList.add('hidden');active=-1;};
   const paint=()=>{
-    box.innerHTML=items.map((d,i)=>'<div class="opt'+(i===active?' on':'')+'" data-i="'+i+'" role="option"><span>'+esc(d.name)+'</span><small>'+d.team+' · '+d.pos.join(', ')+'</small></div>').join('');
+    box.innerHTML=items.map((d,i)=>'<div class="opt'+(i===active?' on':'')+'" data-i="'+i+'" role="option"><span>'+esc(d.name)+'</span><small>'+d.team+' · '+d.pos.join(', ')+(ownerOf(d)?' · '+esc(ownerOf(d)):'')+'</small></div>').join('');
     box.classList.toggle('hidden',!items.length);
     box.querySelectorAll('.opt').forEach(o=>o.onpointerdown=e=>{e.preventDefault();onPick(items[+o.dataset.i]);close();});
   };

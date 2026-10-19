@@ -418,7 +418,30 @@ function lgLookup(p){
   return null;
 }
 function myTeamName(){const t=state.data.teams.find(t=>t.mine);return t?t.name:null;}
-function ownerOf(p){const r=lgLookup(p);return r&&r.owner?r.owner:null;}
+/* Who owns a player. Rosters you've edited in the app win over league data:
+   the team on the Roster tab and any team saved on this device (switched away
+   from) use their lists here; teams you haven't touched use league data. */
+let OWN_IDX=null;
+function playerKeys(p){const d=p.id?null:dirLookup(p),id=p.id||(d&&d.id);const k=[nameKey(d?d.name:p.name)+'|'+p.team];if(id)k.unshift('#'+id);return k;}
+function editedTeams(){
+  const out=new Map(),mine=myTeamName();
+  for(const [name,v] of Object.entries(state.data.stash||{})) out.set(name,v.roster.concat(v.ir));
+  if(mine) out.set(mine,state.data.roster.concat(state.data.ir));
+  return out;
+}
+function ownIndex(){
+  if(OWN_IDX) return OWN_IDX;
+  const by=new Map(),edited=editedTeams();
+  for(const [name,list] of edited) for(const p of list) for(const k of playerKeys(p)) if(!by.has(k)) by.set(k,name);
+  return OWN_IDX={by,edited};
+}
+function ownerOf(p){
+  const ix=ownIndex();
+  for(const k of playerKeys(p)) if(ix.by.has(k)) return ix.by.get(k);
+  const r=lgLookup(p);
+  return r&&r.owner&&!ix.edited.has(r.owner)?r.owner:null;   // an edited team that no longer lists him doesn't own him
+}
+function teamHasPlayers(name){return !!(state.data.stash&&state.data.stash[name])||name===myTeamName()||state.data.lg.players.some(r=>r.owner===name);}
 function statusBadge(p){const r=lgLookup(p);return r&&r.status?'<span class="chip st">'+esc(r.status)+'</span>':'';}
 
 function cleanProjList(list){
@@ -439,7 +462,7 @@ function load(){
   }catch(e){}
   return blank();
 }
-function save(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state.data));}catch(e){toast('Could not save in this browser');}}
+function save(){OWN_IDX=null;try{localStorage.setItem(STORE_KEY,JSON.stringify(state.data));}catch(e){toast('Could not save in this browser');}}
 
 /* ===== Player cleanup (used by the editor, Excel paste and import) ===== */
 function normTeam(x){
@@ -1036,7 +1059,7 @@ function freeAgentPool(){
   const haveLg=state.data.lg.players.length>0,out=[];
   for(const d0 of DIR){
     const r=lgLookup(d0),d=r&&r.pos&&r.pos.length?Object.assign({},d0,{pos:r.pos}):d0;
-    if(haveLg&&r&&r.owner) continue;                                   // rostered by someone
+    if(ownerOf(d)) continue;                                           // rostered by someone (league data or your edits)
     if(state.data.roster.some(q=>samePlayer(q,d))||state.data.ir.some(q=>samePlayer(q,d))) continue;
     if(r&&r.status&&/^(O|OUT|IR|NA|SUSP)/.test(r.status)) continue;    // not playing
     const w=state.data.watch.find(q=>samePlayer(q,d));
@@ -1144,7 +1167,7 @@ function streamPlanHTML(){
   const adds='<div class="stepper" style="border:0;padding:0 0 10px"><div class="lbl"><b>Adds used this week</b><span>'+(st.maxAdds?(left+' of '+st.maxAdds+' left'):'No weekly limit (Settings → Pickups)')+'</span></div>'+
     '<div class="ctl"><button data-udec aria-label="Fewer adds used">−</button><output>'+used+'</output><button data-uinc aria-label="More adds used">+</button></div></div>';
   if(!D.length) return h+'<div class="card pad">'+adds+'<div class="empty-state" style="padding:6px 0">This week is over.</div></div>';
-  const sig=JSON.stringify([state.week,todayIndex(),state.data.roster,state.data.ir,state.data.watch,st,state.data.adds[state.week]||0,state.data.lg.asOf,state.data.lg.players.length,PPG_SIGNATURE()]);
+  const sig=JSON.stringify([state.week,todayIndex(),state.data.roster,state.data.ir,state.data.watch,st,state.data.adds[state.week]||0,state.data.stash,myTeamName(),state.data.lg.asOf,state.data.lg.players.length,PPG_SIGNATURE()]);
   if(PLAN.sig!==sig){PLAN.P=buildStreamPlan();PLAN.sig=sig;}
   const P=PLAN.P,sg=x=>(x>=0?'+':'')+f1(x),dr=(a,b)=>a===b?DOW[dateOf(a).getDay()]:DOW[dateOf(a).getDay()]+'–'+DOW[dateOf(b).getDay()];
   const nAdds=P.spots.reduce((s,x)=>s+x.adds,0);
@@ -1304,6 +1327,8 @@ function dayTotal(roster,i,slots){const ps=roster.filter(p=>plays(p.team,i));let
 function neutralPPG(p){const e=effPPG({name:p.name,team:p.team,pos:p.pos,id:p.id});return e.key?e.val:0;}
 function neutralMine(p){const e=effPPG({name:p.name,team:p.team,pos:p.pos,id:p.id});return e.key?e.val:effPPG(p).val;}   // no source number → your own value
 function leagueRoster(owner){
+  const S=state.data.stash&&state.data.stash[owner];
+  if(S) return S.roster.map(p=>{const q={name:p.name,team:p.team,pos:p.pos.slice(),id:p.id||((dirLookup(p)||{}).id)};q.proj=neutralPPG(q);q.noVal=!effPPG(q).key;return q;});   // your saved edits
   return state.data.lg.players.filter(r=>r.owner===owner&&!/^IR/.test(r.slot||'')).map(r=>{
     const d=dirLookup(r);const pos=r.pos&&r.pos.length?r.pos:(d?d.pos:['C']);
     const q={name:d&&!r.id?d.name:r.name,team:r.team,pos:pos.slice(),id:r.id||(d&&d.id)||undefined};
@@ -1321,12 +1346,12 @@ function swapGain(M,k,inP,days,slots){
   return d;
 }
 const finder={team:'',mode:'both',unlockedOnly:false,myValues:false,results:null,sig:'',busy:false,progress:0,shown:25};
-function finderSig(range){return JSON.stringify([range.key,range.days.length,state.data.roster,state.data.settings,state.data.lg.asOf,state.data.lg.players.length,myTeamName(),finder.unlockedOnly,finder.myValues,PPG_SIGNATURE()]);}
+function finderSig(range){return JSON.stringify([range.key,range.days.length,state.data.roster,state.data.settings,state.data.stash,state.data.lg.asOf,state.data.lg.players.length,myTeamName(),finder.unlockedOnly,finder.myValues,PPG_SIGNATURE()]);}
 function PPG_SIGNATURE(){return state.data.proj.asOf+'|'+state.data.proj.list.length;}
 function runFinder(range,done){
   const slots=slotList(),days=range.days,mine=myTeamName();
   const myRaw=state.data.roster,me=sideModel(finder.myValues?effList(myRaw):myRaw.map(p=>Object.assign({},p,{proj:neutralMine(p)})),days,slots);
-  const teams=state.data.teams.map(t=>t.name).filter(n=>n!==mine&&state.data.lg.players.some(r=>r.owner===n));
+  const teams=state.data.teams.map(t=>t.name).filter(n=>n!==mine&&teamHasPlayers(n));
   const out=[];let ti=0,checked=0,solved=0;
   finder.busy=true;finder.progress=0;
   const step=()=>{
@@ -1361,7 +1386,7 @@ function finderHTML(range){
   const mine=myTeamName(),haveLg=state.data.lg.players.length>0;
   let h='<div class="sect"><h2>Trade finder</h2></div>';
   if(!haveLg||!mine) return h+'<div class="card"><div class="empty-state">'+(!haveLg?'Import league data (Settings → Import) so the app knows every team’s roster.':'Mark your team in Settings → Teams.')+'</div></div>';
-  const others=state.data.teams.filter(t=>!t.mine&&state.data.lg.players.some(r=>r.owner===t.name));
+  const others=state.data.teams.filter(t=>!t.mine&&teamHasPlayers(t.name));
   h+='<div class="card pad">'+
     '<div class="pair"><div class="field half"><label>Team</label><select id="fTeam"><option value="">All teams</option>'+others.map(t=>'<option'+(t.name===finder.team?' selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select></div>'+
     '<div class="field half"><label>Show</label><select id="fMode"><option value="both"'+(finder.mode==='both'?' selected':'')+'>Both gain</option><option value="me"'+(finder.mode==='me'?' selected':'')+'>Helps me</option></select></div></div>'+
@@ -1524,11 +1549,11 @@ function buildCsv(){
   for(const l of ['roster','ir','watch']) for(const p of state.data[l]){
     const d=dirLookup(p);
     const g=lgLookup(p)||{};
-    rows.push([p.name,p.team,p.pos.join(', '),p.derived!=null?p.derived:(d?dirProj(d):projOf(p)),p.manual,p.start,listOf[l],p.unlocked?'Y':'',g.owner,g.slot,g.status,p.l14!=null?p.l14:g.l14,p.l30!=null?p.l30:g.l30,p.id||(d&&d.id)||'']);
+    rows.push([p.name,p.team,p.pos.join(', '),p.derived!=null?p.derived:(d?dirProj(d):projOf(p)),p.manual,p.start,listOf[l],p.unlocked?'Y':'',ownerOf(p)||'',g.slot,g.status,p.l14!=null?p.l14:g.l14,p.l30!=null?p.l30:g.l30,p.id||(d&&d.id)||'']);
     if(d) seen.add(d); 
   }
   const rest=DIR.filter(d=>!seen.has(d)).sort((x,y)=>x.team.localeCompare(y.team)||x.name.localeCompare(y.name));
-  for(const d of rest){const g=lgLookup(d)||{};rows.push([d.name,d.team,(g.pos||d.pos).join(', '),dirProj(d),'','','','',g.owner,g.slot,g.status,g.l14,g.l30,d.id||'']);}
+  for(const d of rest){const g=lgLookup(d)||{};rows.push([d.name,d.team,(g.pos||d.pos).join(', '),dirProj(d),'','','','',ownerOf(d)||'',g.slot,g.status,g.l14,g.l30,d.id||'']);}
   return '﻿'+[CSV_COLS].concat(rows).map(r=>r.map(csvCell).join(',')).join('\r\n');   // BOM so Excel keeps accents
 }
 function download(name,text,type){

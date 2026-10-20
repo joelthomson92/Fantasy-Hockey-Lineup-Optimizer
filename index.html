@@ -132,6 +132,7 @@ nav.tabs button.on{color:var(--accent)}
 .preview{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
 .preview .row.bad{background:var(--warn-soft);color:var(--warn)}
 .muted{color:var(--muted)}
+#srcSeg{margin-top:6px}#srcSeg button{padding:5px 4px;font-size:12.5px}
 .scgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:12px}
 .sc{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
 .sc span{flex:1;min-width:0;line-height:1.2}.sc b{display:block;color:var(--ink);font-size:13px}
@@ -222,6 +223,7 @@ a{color:var(--accent)}
       <button data-r="full">Full week</button>
       <button data-r="season">Season</button>
     </div>
+    <div class="seg" id="srcSeg" aria-label="Points per game from"></div>
   </div>
 </header>
 
@@ -826,6 +828,11 @@ function renderHeader(){
   if(state.tab==='trades') $('#wkTitle').innerHTML='Trades<small>Your roster as-is vs. with the trade, from today on</small>';
   $('#prevWk').style.visibility=$('#nextWk').style.visibility=set?'hidden':'';
   $('#rangeSeg').classList.toggle('hidden',state.tab==='settings'||state.tab==='trades');
+  // points-per-game source, same setting as Settings → Points per game
+  const ss=$('#srcSeg'),src=state.data.settings.ppgSource;
+  ss.innerHTML=PPG_SOURCES.map(s=>'<button data-src="'+s.key+'" class="'+(s.key===src?'on':'')+'" aria-pressed="'+(s.key===src)+'">'+s.label+'</button>').join('');
+  ss.classList.toggle('hidden',state.tab==='settings');
+  ss.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(b.dataset.src===state.data.settings.ppgSource)return;state.data.settings.ppgSource=b.dataset.src;save();renderAll();toast('Points from '+b.textContent+(state.data.settings.useManual?' · manual values still win':''));});
 }
 
 /* ===== Season overview =====

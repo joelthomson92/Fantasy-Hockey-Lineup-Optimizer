@@ -132,6 +132,22 @@ nav.tabs button.on{color:var(--accent)}
 .preview{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
 .preview .row.bad{background:var(--warn-soft);color:var(--warn)}
 .muted{color:var(--muted)}
+.tpick{display:flex;flex-wrap:wrap;gap:6px}
+.tpick button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:6px 9px;text-align:left;font:inherit;font-size:13px;cursor:pointer;line-height:1.2}
+.tpick button small{display:block;color:var(--muted);font-size:11px}
+.tpick button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.tpick button.on small{color:var(--accent-ink);opacity:.85}
+.tcols{display:grid;grid-template-columns:1fr 1fr}
+.tcol{padding:12px 14px;min-width:0}.tcol+.tcol{border-left:1px solid var(--line)}
+.tname1{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbig{font-size:26px;font-weight:800;margin-top:4px;line-height:1.1}.tbig.g{color:var(--good)}.tbig.w{color:var(--bad)}
+.tlbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block}
+.tline{font-size:13px;margin:6px 0 4px;color:var(--muted)}.tline b{color:var(--ink)}
+.tlist{font-size:13px;margin-top:8px}.tlist div{margin-top:2px;overflow-wrap:anywhere}.tlist small{display:block;color:var(--muted);font-size:11.5px}.tlist .w{color:var(--warn)}
+.twk{display:grid;grid-template-columns:1fr 70px 70px;gap:6px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);font-size:14px}
+.twk span:not(:first-child){text-align:right;font-weight:700}.twk small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.twk .g{color:var(--good)}.twk .w{color:var(--bad)}
+.twk.thead{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:6px 14px}
+
 #srcSeg{margin-top:6px}#srcSeg button{padding:5px 4px;font-size:12.5px}
 .scgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:12px}
 .sc{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
@@ -825,7 +841,7 @@ function renderHeader(){
   if(season){const pw=playoffWeeks();$('#wkTitle').innerHTML='Season<small>'+(lg?esc(lg)+' · ':'')+'Every fantasy week'+(pw.length?' · playoffs '+pw.join(', '):'')+'</small>';}
   const set=state.tab==='settings'||state.tab==='trades'||season;
   if(state.tab==='settings') $('#wkTitle').innerHTML='Settings<small>Saved in this browser only</small>';
-  if(state.tab==='trades') $('#wkTitle').innerHTML='Trades<small>Your roster as-is vs. with the trade, from today on</small>';
+  if(state.tab==='trades') $('#wkTitle').innerHTML='Trades<small>Both teams as-is vs. with the trade, from today on</small>';
   $('#prevWk').style.visibility=$('#nextWk').style.visibility=set?'hidden':'';
   $('#rangeSeg').classList.toggle('hidden',state.tab==='settings'||state.tab==='trades');
   // points-per-game source, same setting as Settings → Points per game
@@ -1043,7 +1059,7 @@ function switchTeam(i){
   else if(state.data.lg.players.some(r=>r.owner===nm)){const L=teamFromLeague(nm,[]);state.data.roster=L.roster;state.data.ir=L.ir;how='loaded from league data';}
   else {state.data.roster=[];state.data.ir=[];how='empty roster';}
   state.data.watch=state.data.watch.filter(w=>!state.data.roster.concat(state.data.ir).some(p=>samePlayer(p,w)));
-  finder.results=null;trade.give=-1;
+  finder.results=null;trade.give=[];trade.get=[];trade.team="";
   save();toast('Showing '+nm+' · '+how);
 }
 function openLoadMine(){
@@ -1422,53 +1438,137 @@ function leagueRoster(owner){
     const q={name:d&&!r.id?d.name:r.name,team:r.team,pos:pos.slice(),id:r.id||(d&&d.id)||undefined};
     q.proj=neutralPPG(q);q.noVal=!effPPG(q).key;return q;});
 }
-function sideModel(roster,days,slots){   // per-day base totals and the cost of losing each player
+/* --- Trade engine ---------------------------------------------------------
+   A side = one team's roster (with .proj set) over the chosen days. Trades of
+   up to 2-for-2 are scored by re-optimizing that side's daily lineups.
+   Uneven trades: the side that ends up over the roster limit drops the player
+   whose loss costs least; the side that frees a spot can fill it with the best
+   free agent (exact in Check a trade, estimated in the finder). */
+function sideModel(roster,days,slots){
   const base=new Map();for(const i of days)base.set(i,dayTotal(roster,i,slots));
-  const gp=roster.map(p=>days.filter(i=>plays(p.team,i)));
-  const loss=roster.map((p,k)=>{const rest=roster.filter((_,x)=>x!==k);let l=0;for(const i of gp[k])l+=base.get(i)-dayTotal(rest,i,slots);return l;});
-  return {roster,base,gp,loss};
+  return {roster,days,slots,base,gp:roster.map(p=>days.filter(i=>plays(p.team,i))),lc:new Map()};
 }
-function swapGain(M,k,inP,days,slots){
-  const after=M.roster.filter((_,x)=>x!==k).concat([inP]),out=M.roster[k];let d=0;
-  for(const i of days){if(!plays(out.team,i)&&!plays(inP.team,i))continue;d+=dayTotal(after,i,slots)-M.base.get(i);}
-  return d;
+function lossOf(M,ks){   // points lost over the range if these players leave, nobody added
+  const key=ks.slice().sort((a,b)=>a-b).join(',');
+  if(M.lc.has(key)) return M.lc.get(key);
+  const rest=M.roster.filter((_,x)=>!ks.includes(x)),ds=new Set();ks.forEach(k=>M.gp[k].forEach(i=>ds.add(i)));
+  let l=0;for(const i of ds)l+=M.base.get(i)-dayTotal(rest,i,M.slots);
+  M.lc.set(key,l);return l;
 }
-const finder={team:'',mode:'both',unlockedOnly:false,myValues:false,results:null,sig:'',busy:false,progress:0,shown:25};
-function finderSig(range){return JSON.stringify([range.key,range.days.length,state.data.roster,state.data.settings,state.data.stash,state.data.lg.asOf,state.data.lg.players.length,myTeamName(),finder.unlockedOnly,finder.myValues,PPG_SIGNATURE()]);}
-function PPG_SIGNATURE(){return state.data.proj.asOf+'|'+state.data.proj.list.length;}
-function runFinder(range,done){
-  const slots=slotList(),days=range.days,mine=myTeamName();
-  const myRaw=state.data.roster,me=sideModel(finder.myValues?effList(myRaw):myRaw.map(p=>Object.assign({},p,{proj:neutralMine(p)})),days,slots);
-  const teams=state.data.teams.map(t=>t.name).filter(n=>n!==mine&&teamHasPlayers(n));
-  const out=[];let ti=0,checked=0,solved=0;
-  finder.busy=true;finder.progress=0;
-  const step=()=>{
-    if(ti>=teams.length){finder.busy=false;finder.results={list:out,checked,solved,teams:teams.length,days:days.length};done();return;}
-    const owner=teams[ti++],them=sideModel(leagueRoster(owner),days,slots);
-    me.roster.forEach((give,k)=>{
-      if(finder.unlockedOnly&&!myRaw[k].unlocked) return;
-      const giveN=Object.assign({},give,{proj:neutralMine(myRaw[k])});          // how they'd value him
-      them.roster.forEach((get,j)=>{
-        checked++;
-        const known=['roster','ir','watch'].flatMap(l=>state.data[l]).find(q=>samePlayer(q,get));
-        const getMine=Object.assign({},get,{proj:finder.myValues&&known?effPPG(known).val:get.proj});   // how you value him
-        const capMe=getMine.proj*them.gp[j].length-me.loss[k];
-        const capThem=giveN.proj*me.gp[k].length-them.loss[j];
-        if(capMe<=0.05) return;
-        if(finder.mode==='both'&&capThem<0) return;
-        solved++;
-        const my=swapGain(me,k,getMine,days,slots); if(my<=0.05) return;
-        const th=swapGain(them,j,giveN,days,slots);
-        if(finder.mode==='both'&&th<0) return;
-        out.push({owner,k,give:myRaw[k],get,getPPG:getMine.proj,my,th});
-      });
+function faPoolFor(useMine){return freeAgentPool().map(f=>useMine?f:Object.assign({},f,{proj:neutralPPG(f)})).filter(f=>f.proj>0);}
+function bestFill(roster,days,slots,pool){   // best free agent to add, searched best-first with a cap
+  const cand=pool.map(f=>({f,ub:f.proj*days.filter(i=>plays(f.team,i)).length})).sort((a,b)=>b.ub-a.ub);
+  const bt=new Map();let best=null;
+  for(const c of cand){
+    if(best&&c.ub<=best.gain) break;
+    let g=0;for(const i of days){if(!plays(c.f.team,i))continue;if(!bt.has(i))bt.set(i,dayTotal(roster,i,slots));g+=dayTotal(roster.concat([c.f]),i,slots)-bt.get(i);}
+    if(!best||g>best.gain) best={p:c.f,gain:g};
+  }
+  return best&&best.gain>0.005?best:null;
+}
+/* What a freed roster spot is really worth: the best free agent you could add,
+   minus what you could already gain without the trade by cutting your least
+   useful player for that free agent. If good free agents are out there, you
+   can grab one either way, so the extra spot is worth only the player you
+   get to keep. */
+function spotModel(M,pool){
+  let worst=-1,wl=Infinity;M.roster.forEach((_,k)=>{const l=lossOf(M,[k]);if(l<wl){wl=l;worst=k;}});
+  const r0=bestFill(M.roster,M.days,M.slots,pool);
+  const r1=worst>=0?bestFill(M.roster.filter((_,x)=>x!==worst),M.days,M.slots,pool):null;
+  const G1=Math.max(0,(r1?r1.gain:0)-(worst>=0?wl:0));
+  const swap=G1>0?{out:M.roster[worst],in:r1.p}:null;   // the move this team could make anyway
+  return {R0:r0?r0.gain:0,G1,pool,swap,alt:swap?M.roster.filter((_,x)=>x!==worst).concat([r1.p]):M.roster};
+}
+function evalSide(M,outs,ins,opts){
+  let after=M.roster.filter((_,x)=>!outs.includes(x)).concat(ins);
+  const lim=rosterLimit(),before=M.roster.length,ch=new Set();
+  outs.forEach(k=>M.gp[k].forEach(i=>ch.add(i)));
+  ins.forEach(p=>M.days.forEach(i=>{if(plays(p.team,i))ch.add(i);}));
+  let drop=null,fill=null,fillGain=0;
+  if(after.length>Math.max(lim,before)){             // over the limit: drop the cheapest player (not one just received)
+    let best=null;
+    after.forEach((p,x)=>{
+      if(ins.includes(p)) return;
+      let l;
+      if(opts.exactDrop){const rest=after.filter((_,y)=>y!==x);l=0;for(const i of M.days)if(plays(p.team,i))l+=dayTotal(after,i,M.slots)-dayTotal(rest,i,M.slots);}
+      else l=(p.proj||0)*M.days.filter(i=>plays(p.team,i)).length;
+      if(!best||l<best.l)best={x,l};
     });
-    finder.progress=ti/teams.length;
+    drop=after[best.x];after=after.filter((_,y)=>y!==best.x);
+    M.days.forEach(i=>{if(plays(drop.team,i))ch.add(i);});
+  }
+  let gain=0;for(const i of ch)gain+=dayTotal(after,i,M.slots)-M.base.get(i);
+  if(after.length<before&&after.length<lim&&opts.fill&&opts.fill!=='none'){   // the trade frees a roster spot
+    const S=opts.spot;
+    if(opts.fill==='est') fillGain=Math.max(0,S.R0-S.G1);
+    else {const f=bestFill(after,M.days,M.slots,S.pool);if(f){fill=f.p;fillGain=f.gain-S.G1;after=after.concat([f.p]);}}
+  }
+  return {gain:gain+fillGain,drop,fill,fillGain,after};
+}
+function myValued(useMine){const raw=state.data.roster;return useMine?effList(raw):raw.map(p=>Object.assign({},p,{proj:neutralMine(p)}));}
+function asMine(p,useMine){const known=useMine?['roster','ir','watch'].flatMap(l=>state.data[l]).find(q=>samePlayer(q,p)):null;return Object.assign({},p,{proj:known?effPPG(known).val:p.proj});}
+function pairs(ix){const o=[];for(let a=0;a<ix.length;a++)for(let b=a+1;b<ix.length;b++)o.push([ix[a],ix[b]]);return o;}
+const SIZES={'1x1':[1,1],'2x1':[2,1],'1x2':[1,2],'2x2':[2,2]};
+const SIZE_LABEL={'1x1':'1-for-1','2x1':'2-for-1','1x2':'1-for-2','2x2':'2-for-2'};
+
+const finder={team:'',mode:'both',unlockedOnly:false,myValues:false,size:'1x1',results:null,sig:'',busy:false,progress:0,shown:25};
+function finderSig(range){return JSON.stringify([range.key,range.days.length,state.data.roster,state.data.settings,state.data.stash,state.data.lg.asOf,state.data.lg.players.length,myTeamName(),finder.unlockedOnly,finder.myValues,finder.size,finder.mode,PPG_SIGNATURE(),NHL&&NHL.fetchedAt]);}
+function PPG_SIGNATURE(){return state.data.proj.asOf+'|'+state.data.proj.list.length;}
+/* For each team, every combination of the chosen sizes gets an upper bound on
+   each side's gain (adding players can raise a day's lineup by at most their
+   PPG). Combinations are then solved exactly in order of that bound, stopping
+   once the bound can't beat the 30th best result found for that team. */
+async function runFinder(range,done){
+  const slots=slotList(),days=range.days,mine=myTeamName(),K=12,CAP=700;
+  let tick=performance.now();
+  const breathe=async()=>{if(performance.now()-tick>40){await new Promise(r=>setTimeout(r,0));tick=performance.now();}};
+  const myRaw=state.data.roster,me=sideModel(myValued(finder.myValues),days,slots);
+  const myPool=faPoolFor(finder.myValues),nPool=faPoolFor(false);
+  const Sme=spotModel(me,myPool),Rme=Math.max(0,Sme.R0-Sme.G1);
+  const teams=state.data.teams.map(t=>t.name).filter(n=>n!==mine&&teamHasPlayers(n));
+  const sizes=finder.size==='all'?Object.keys(SIZES):[finder.size];
+  const myIx=me.roster.map((_,k)=>k).filter(k=>!finder.unlockedOnly||myRaw[k].unlocked);
+  const out=[];let checked=0,solved=0;
+  finder.busy=true;finder.progress=0;
+  for(let ti=0;ti<teams.length;ti++){
+    const owner=teams[ti],them=sideModel(leagueRoster(owner),days,slots);
+    const lbl=$('#fProg');if(lbl)lbl.textContent='Checking '+owner+'… '+(ti+1)+'/'+teams.length;
+    await breathe();
+    const Sth=spotModel(them,nPool),Rth=Math.max(0,Sth.R0-Sth.G1);
+    const thIx=them.roster.map((_,j)=>j);
+    const giveN=me.roster.map((p,k)=>Object.assign({},p,{proj:neutralMine(myRaw[k])}));   // how they value your players
+    const getM=them.roster.map(p=>asMine(p,finder.myValues));                               // how you value theirs
+    const combos=[];
+    for(const sz of sizes){
+      const [a,b]=SIZES[sz];
+      const outsL=a===1?myIx.map(k=>[k]):pairs(myIx),insL=b===1?thIx.map(j=>[j]):pairs(thIx);
+      for(const outs of outsL){await breathe();for(const ins of insL){
+        checked++;
+        const ubMe=ins.reduce((s,j)=>s+getM[j].proj*them.gp[j].length,0)-lossOf(me,outs)+(a>b?Rme:0);
+        if(ubMe<=0.05) continue;
+        const ubTh=outs.reduce((s,k)=>s+giveN[k].proj*me.gp[k].length,0)-lossOf(them,ins)+(b>a?Rth:0);
+        if(finder.mode==='both'&&ubTh<0) continue;
+        combos.push({outs,ins,sz,key:finder.mode==='both'?Math.min(ubMe,ubTh):ubMe});
+      }}
+    }
+    combos.sort((x,y)=>y.key-x.key);
+    const found=[];let n=0;
+    for(const c of combos){
+      if(found.length>=K&&c.key<=found[K-1].key) break;
+      if(++n>CAP) break;   // safety cap; the bound order puts the likely winners first
+      solved++;await breathe();
+      const my=evalSide(me,c.outs,c.ins.map(j=>getM[j]),{fill:'est',spot:Sme});
+      if(my.gain<=0.05) continue;
+      const th=evalSide(them,c.ins,c.outs.map(k=>giveN[k]),{fill:'est',spot:Sth});
+      if(finder.mode==='both'&&th.gain<0) continue;
+      const r={owner,sz:c.sz,give:c.outs.map(k=>myRaw[k]),get:c.ins.map(j=>them.roster[j]),my:my.gain,th:th.gain,key:finder.mode==='both'?Math.min(my.gain,th.gain):my.gain};
+      found.push(r);found.sort((x,y)=>y.key-x.key);
+    }
+    out.push(...found);
+    finder.progress=(ti+1)/teams.length;
     const bar=$('#fBar');if(bar)bar.style.width=Math.round(finder.progress*100)+'%';
-    const lbl=$('#fProg');if(lbl)lbl.textContent='Checking '+owner+'… '+ti+'/'+teams.length;
-    setTimeout(step,0);
-  };
-  step();
+  }
+  finder.busy=false;finder.results={list:out,checked,solved,teams:teams.length,days:days.length,sizes};done();
 }
 function finderHTML(range){
   const mine=myTeamName(),haveLg=state.data.lg.players.length>0;
@@ -1476,6 +1576,8 @@ function finderHTML(range){
   if(!haveLg||!mine) return h+'<div class="card"><div class="empty-state">'+(!haveLg?'Import league data (Settings → Import) so the app knows every team’s roster.':'Mark your team in Settings → Teams.')+'</div></div>';
   const others=state.data.teams.filter(t=>!t.mine&&teamHasPlayers(t.name));
   h+='<div class="card pad">'+
+    '<div class="field"><label>Trade size</label><div class="seg" id="fSize" style="margin:0">'+['1x1','2x1','1x2','2x2','all'].map(s=>'<button data-fsize="'+s+'" class="'+(finder.size===s?'on':'')+'">'+(s==='all'?'All':SIZE_LABEL[s].replace('-for-',' for '))+'</button>').join('')+'</div>'+
+      '<small>“2 for 1” = you give two players for one of theirs.</small></div>'+
     '<div class="pair"><div class="field half"><label>Team</label><select id="fTeam"><option value="">All teams</option>'+others.map(t=>'<option'+(t.name===finder.team?' selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select></div>'+
     '<div class="field half"><label>Show</label><select id="fMode"><option value="both"'+(finder.mode==='both'?' selected':'')+'>Both gain</option><option value="me"'+(finder.mode==='me'?' selected':'')+'>Helps me</option></select></div></div>'+
     '<label class="toggle" style="margin:0 0 6px"><input type="checkbox" id="fUnl"'+(finder.unlockedOnly?' checked':'')+'><span><b>Only offer unlocked players</b></span></label>'+
@@ -1485,29 +1587,26 @@ function finderHTML(range){
   else h+='<button class="btn primary" id="fGo" style="width:100%">'+(fresh?'Search again':'Find trades')+' · '+esc(range.label.toLowerCase())+'</button>';
   h+='</div>';
   if(!fresh||finder.busy){
-    if(!finder.busy) h+='<p class="note">Tries every 1-for-1 swap with each team over '+esc(range.label.toLowerCase())+' ('+range.days.length+' days), re-optimizing both lineups day by day. Players are valued with '+esc(PPG_SOURCES.find(s=>s.key===state.data.settings.ppgSource).label.toLowerCase())+' numbers'+(finder.myValues?' (your manual values on your side)':'')+'. Checking a trade below uses your own values.</p>';
+    if(!finder.busy) h+='<p class="note">Tries every '+(finder.size==='all'?'1-for-1 up to 2-for-2':SIZE_LABEL[finder.size])+' trade with each team over '+esc(range.label.toLowerCase())+' ('+range.days.length+' days), re-optimizing both lineups day by day. When a trade leaves a team over the roster limit it drops its least useful player; a team that frees a spot is credited with roughly what that spot adds beyond a pickup it could already make by cutting its weakest player. Players are valued with '+esc(PPG_SOURCES.find(s=>s.key===state.data.settings.ppgSource).label.toLowerCase())+' numbers'+(finder.myValues?' (your manual values on your side)':'')+'.</p>';
     return h;
   }
   const R=finder.results;
   let list=R.list.filter(x=>!finder.team||x.owner===finder.team);
-  list.sort(finder.mode==='both'?(x,y)=>Math.min(y.my,y.th)-Math.min(x.my,x.th)||y.my-x.my:(x,y)=>y.my-x.my);
+  list.sort((x,y)=>y.key-x.key||y.my-x.my);
   const sg=x=>(x>=0?'+':'')+f1(x);
-  h+='<p class="note">'+list.length+' prospect'+(list.length===1?'':'s')+(finder.team?' with '+esc(finder.team):' across '+R.teams+' teams')+' · '+R.checked+' swaps checked. '+(finder.mode==='both'?'Sorted by the smaller of the two gains, so the most balanced wins come first.':'Sorted by your gain.')+' Tap one to see it week by week.</p>';
-  if(!list.length) return h+'<div class="card"><div class="empty-state">No 1-for-1 swap '+(finder.mode==='both'?'helps both teams':'helps you')+' over this range.'+(finder.mode==='both'?' Try “Helps me”.':'')+'</div></div>';
-  const row=x=>'<div class="prow" data-prosp="'+R.list.indexOf(x)+'" style="cursor:pointer"><div class="main">'+
-      '<div class="nm">'+esc(x.give.name)+' <span class="muted">→</span> '+esc(x.get.name)+chips(x.get.pos)+statusBadge(x.get)+'</div>'+
-      '<div class="sub">you <b class="'+(x.my>0?'g':'')+'">'+sg(x.my)+'</b> · them <b class="'+(x.th>0?'g':x.th<0?'w':'')+'">'+sg(x.th)+'</b> pts</div></div>'+
+  h+='<p class="note">'+list.length+' prospect'+(list.length===1?'':'s')+(finder.team?' with '+esc(finder.team):' across '+R.teams+' teams')+' · '+R.checked.toLocaleString()+' trades checked. '+(finder.mode==='both'?'Sorted by the smaller of the two gains, so the most balanced wins come first.':'Sorted by your gain.')+' Tap one to check it side by side.</p>';
+  if(!list.length) return h+'<div class="card"><div class="empty-state">No trade of this size '+(finder.mode==='both'?'helps both teams':'helps you')+' over this range.'+(finder.mode==='both'?' Try “Helps me”.':'')+'</div></div>';
+  const names=a=>a.map(p=>esc(p.name)).join(' + ');
+  const row=(x,showOwner)=>'<div class="prow" data-prosp="'+R.list.indexOf(x)+'" style="cursor:pointer"><div class="main">'+
+      '<div class="nm">'+names(x.give)+' <span class="muted">→</span> '+names(x.get)+(x.get.length===1?chips(x.get[0].pos)+statusBadge(x.get[0]):'')+(R.sizes.length>1?' <span class="badge">'+SIZE_LABEL[x.sz]+'</span>':'')+'</div>'+
+      '<div class="sub">'+(showOwner?esc(x.owner)+' · ':'')+'you <b class="'+(x.my>0?'g':'')+'">'+sg(x.my)+'</b> · them <b class="'+(x.th>0?'g':x.th<0?'w':'')+'">'+sg(x.th)+'</b> pts</div></div>'+
       '<div class="num"><b class="g">'+sg(x.my)+'</b><span>pts</span></div></div>';
   if(!finder.team){   // best few with each team, teams ordered by their best prospect
     const by=new Map();for(const x of list){if(!by.has(x.owner))by.set(x.owner,[]);by.get(x.owner).push(x);}
-    for(const [owner,xs] of by) h+='<div class="sect"><h2>'+esc(owner)+' · '+xs.length+'</h2>'+(xs.length>3?'<button class="btn" data-fteam="'+esc(owner)+'">All '+xs.length+'</button>':'')+'</div><div class="card">'+xs.slice(0,3).map(row).join('')+'</div>';
+    for(const [owner,xs] of by) h+='<div class="sect"><h2>'+esc(owner)+' · '+xs.length+'</h2>'+(xs.length>3?'<button class="btn" data-fteam="'+esc(owner)+'">All '+xs.length+'</button>':'')+'</div><div class="card">'+xs.slice(0,3).map(x=>row(x,false)).join('')+'</div>';
     return h;
   }
-  h+='<div class="card">'+list.slice(0,finder.shown).map((x,i)=>{
-    return '<div class="prow" data-prosp="'+R.list.indexOf(x)+'" style="cursor:pointer"><div class="main">'+
-      '<div class="nm">'+esc(x.give.name)+' <span class="muted">→</span> '+esc(x.get.name)+chips(x.get.pos)+statusBadge(x.get)+'</div>'+
-      '<div class="sub">'+esc(x.owner)+' · you <b class="'+(x.my>0?'g':'')+'">'+sg(x.my)+'</b> · them <b class="'+(x.th>0?'g':x.th<0?'w':'')+'">'+sg(x.th)+'</b> pts</div></div>'+
-      '<div class="num"><b class="g">'+sg(x.my)+'</b><span>pts</span></div></div>';}).join('')+'</div>';
+  h+='<div class="card">'+list.slice(0,finder.shown).map(x=>row(x,true)).join('')+'</div>';
   if(list.length>finder.shown) h+='<div class="actions"><button class="btn grow" id="fMore">Show more ('+(list.length-finder.shown)+')</button></div>';
   return h;
 }
@@ -1517,88 +1616,102 @@ function wireFinder(range){
   $('#fMode').onchange=e=>{finder.mode=e.target.value;finder.results=null;finder.shown=25;renderTrades();};
   $('#fUnl').onchange=e=>{finder.unlockedOnly=e.target.checked;finder.results=null;renderTrades();};
   $('#fMine').onchange=e=>{finder.myValues=e.target.checked;finder.results=null;renderTrades();};
+  document.querySelectorAll('[data-fsize]').forEach(b=>b.onclick=()=>{if(finder.busy)return;finder.size=b.dataset.fsize;finder.results=null;finder.shown=25;renderTrades();});
   if($('#fGo')) $('#fGo').onclick=()=>{finder.shown=25;const sig=finderSig(range);runFinder(range,()=>{finder.sig=sig;if(state.tab==='trades')renderTrades();});renderTrades();};
   if($('#fMore')) $('#fMore').onclick=()=>{finder.shown+=25;renderTrades();};
   document.querySelectorAll('[data-fteam]').forEach(b=>b.onclick=()=>{finder.team=b.dataset.fteam;finder.shown=25;renderTrades();window.scrollTo(0,0);});
   document.querySelectorAll('[data-prosp]').forEach(el=>el.onclick=()=>{
-    const x=finder.results.list[+el.dataset.prosp],k=state.data.roster.findIndex(p=>samePlayer(p,x.give));
-    if(k<0){toast('He’s no longer on your roster');return;}
-    trade.mine=finder.myValues;trade.give=k;trade.get={name:x.get.name,team:x.get.team,pos:x.get.pos.slice(),ppg:String(Math.round(x.getPPG*100)/100)};
+    const x=finder.results.list[+el.dataset.prosp];
+    if(!x.give.every(p=>state.data.roster.some(q=>samePlayer(q,p)))){toast('Your roster has changed since this search');return;}
+    trade.team=x.owner;trade.give=x.give.map(pRef);trade.get=x.get.map(pRef);trade.mine=finder.myValues;
     renderTrades();const c=$('#tCheck');if(c)c.scrollIntoView({behavior:'smooth',block:'start'});
   });
 }
 
-const trade={give:-1,get:{name:'',team:'',pos:[],ppg:''},range:null,mine:true};
+/* --- Check a trade: both teams, side by side --- */
+function pRef(p){return {name:p.name,team:p.team,id:p.id};}
+const trade={team:'',give:[],get:[],range:null,mine:false,fill:true};
 function renderTrades(){
   const root=$('#tab-trades'),slots=slotList(),st=state.data.settings;
-  const rosterRaw=state.data.roster,roster=trade.mine?effList(rosterRaw):rosterRaw.map(p=>Object.assign({},p,{proj:neutralMine(p)}));
   const ranges=tradeRanges();
   if(!ranges.some(r=>r.key===trade.range)) trade.range=ranges[0].key;
-  const g=trade.get;
   const rangeT=ranges.find(r=>r.key===trade.range);
+  const mineN=myTeamName(),others=state.data.teams.filter(t=>!t.mine&&teamHasPlayers(t.name));
+  if(trade.team&&!others.some(t=>t.name===trade.team)){trade.team='';trade.get=[];}
+  const myRaw=state.data.roster,theirs=trade.team?leagueRoster(trade.team):[];
+  trade.give=trade.give.filter(r=>myRaw.some(p=>samePlayer(p,r)));
+  trade.get=trade.get.filter(r=>theirs.some(p=>samePlayer(p,r)));
+  const pick=(list,sel,attr)=>'<div class="tpick">'+list.map((p,k)=>{const on=sel.some(r=>samePlayer(p,r));
+      return '<button type="button" '+attr+'="'+k+'" class="'+(on?'on':'')+'" aria-pressed="'+on+'"><b>'+esc(p.name)+'</b><small>'+p.pos.join('/')+' · '+esc(p.team)+'</small></button>';}).join('')+'</div>';
   let h=(ranges.length>1?'<div class="seg" id="tRange" style="margin:4px 0 0">'+ranges.map(r=>'<button data-tr="'+r.key+'" class="'+(r.key===trade.range?'on':'')+'">'+r.label+'</button>').join('')+'</div>':'')+
     finderHTML(rangeT)+
-    '<div class="sect" id="tCheck"><h2>Check a trade</h2></div><div class="card pad">'+
-    '<div class="field"><label>You give</label><select id="tGive"><option value="-1">Choose a roster player…</option>'+
-      rosterRaw.map((p,k)=>'<option value="'+k+'"'+(k===trade.give?' selected':'')+'>'+esc(p.name)+' · '+esc(p.team)+' · '+p.pos.join('/')+'</option>').join('')+'</select></div>'+
-    '<div class="field ac"><label>You get</label><input id="tName" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Start typing a player’s name" value="'+esc(g.name)+'"><div class="sugg hidden" id="tSugg" role="listbox"></div></div>'+
-    '<div class="pair"><div class="field half"><label>Team</label><select id="tTeam"><option value="">—</option>'+TEAMS.map(t=>'<option'+(t===g.team?' selected':'')+'>'+t+'</option>').join('')+'</select></div>'+
-      '<div class="field half"><label>His PPG (optional)</label><input id="tPPG" type="number" inputmode="decimal" step="0.01" placeholder="—" value="'+esc(g.ppg)+'"></div></div>'+
-    '<div class="field"><label>His positions</label><div class="posbtns">'+POSITIONS.map(x=>'<button type="button" data-tpos="'+x+'" class="'+(g.pos.includes(x)?'on':'')+'">'+x+'</button>').join('')+'</div></div>'+
-    '<div class="field" style="margin:0"><label>Value your players with</label><div class="seg" style="margin:0"><button data-tmine="1" class="'+(trade.mine?'on':'')+'">My values</button><button data-tmine="0" class="'+(trade.mine?'':'on')+'">Same as everyone</button></div></div>'+
-    '</div>';
-  if(!st.playoffs.on) h+='<p class="note">Tip: turn on Playoffs in Settings to compare your playoff weeks separately.</p>';
-  else if(!st.playoffs.weeks.length) h+='<p class="note">Playoffs are on but no weeks are selected yet (Settings → Playoffs).</p>';
-
-  const ready=trade.give>=0&&trade.give<rosterRaw.length&&g.team&&g.pos.length;
-  if(!ready){
-    h+='<div class="card"><div class="empty-state">Pick who you’d give, then the player you’d get (name, team and positions).</div></div>';
+    '<div class="sect" id="tCheck"><h2>Check a trade</h2></div>';
+  if(!others.length){
+    h+='<div class="card"><div class="empty-state">Import league data and pick your team in Settings → Teams to check trades with other teams.</div></div>';
   } else {
-    const giveP=roster[trade.give];
-    const ppg=numOrNull(g.ppg);
-    const incoming={name:g.name||'Incoming player',team:g.team,pos:g.pos,proj:ppg==null?0:ppg};
-    const after=roster.filter((_,x)=>x!==trade.give).concat([incoming]);
-    const range=rangeT;
-    if(!range.days.length){
-      h+='<div class="card" style="margin-top:12px"><div class="empty-state">No days left in this range.</div></div>';
-    } else {
-      const wk=weekBreakdown(roster,after,range,slots);
-      const sb=wk.reduce((s,x)=>s+x.b,0),sa=wk.reduce((s,x)=>s+x.a,0);
-      const pb=wk.reduce((s,x)=>s+x.pb,0),pa=wk.reduce((s,x)=>s+x.pa,0);
-      const giveStarts=playerStarts(roster,range.days,slots,giveP.name),getStarts=playerStarts(after,range.days,slots,incoming.name);
-      const giveGP=range.days.filter(i=>plays(giveP.team,i)).length,getGP=range.days.filter(i=>plays(incoming.team,i)).length;
-      const d=sa-sb,showPts=ppg!=null;
-      const sg=x=>(x>0?'+':'')+x, cls=x=>x>0?'g':x<0?'w':'';
-      const ow=ownerOf({name:incoming.name,team:incoming.team,pos:incoming.pos});
-      if(ow) h+='<p class="note" style="margin-top:12px">'+esc(incoming.name)+' is on <b>'+esc(ow)+'</b>.</p>';
-      h+='<div class="card" style="margin-top:12px"><div class="stats" style="grid-template-columns:repeat('+(showPts?3:2)+',1fr)">'+
-        '<div class="stat big"><b class="'+cls(d)+'">'+sg(d)+'</b><span>Net starts</span></div>'+
-        '<div class="stat"><b>'+sb+' → '+sa+'</b><span>Team starts</span></div>'+
-        (showPts?'<div class="stat"><b class="'+cls(pa-pb)+'">'+(pa-pb>=0?'+':'')+f1(pa-pb)+'</b><span>Net points</span></div>':'')+
-        '</div></div>';
-      h+='<p class="note">'+esc(giveP.name)+': '+giveGP+' GP, '+giveStarts+' starts for you · '+esc(incoming.name)+': '+getGP+' GP, '+getStarts+' starts for you. '+
-        'Net starts also counts benched players who slide into (or lose) a spot.'+(showPts?'':' Add his PPG to see points.')+'</p>';
-      h+='<div class="sect"><h2>By week · '+range.label.toLowerCase()+'</h2></div><div class="card">'+
-        wk.map(x=>{const dd=x.a-x.b,dp=x.pa-x.pb,d0=dateOf(x.days[0]),d1=dateOf(x.days[x.days.length-1]);
-          return '<div class="prow" style="cursor:default"><div class="main"><div class="nm">Week '+x.w+(playoffWeeks().includes(x.w)?' <span class="badge">Playoffs</span>':'')+'</div>'+
-            '<div class="sub">'+md(d0)+' – '+md(d1)+' · '+x.b+' → '+x.a+' starts'+(showPts?' · '+(dp>=0?'+':'')+f1(dp)+' pts':'')+'</div></div>'+
-            '<div class="num"><b class="'+cls(dd)+'">'+sg(dd)+'</b><span>starts</span></div></div>';}).join('')+'</div>';
-    }
+    h+='<div class="card pad">'+
+      '<div class="field"><label>Trade with</label><select id="tTeam"><option value="">Choose a team…</option>'+others.map(t=>'<option'+(t.name===trade.team?' selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select></div>'+
+      '<div class="field"><label>You give · '+trade.give.length+'/2</label>'+pick(myRaw,trade.give,'data-tg')+'</div>'+
+      (trade.team?'<div class="field"><label>You get · '+trade.get.length+'/2</label>'+pick(theirs,trade.get,'data-tt')+'</div>':'')+
+      '<div class="field"><label>Value your players with</label><div class="seg" style="margin:0"><button data-tmine="1" class="'+(trade.mine?'on':'')+'">My values</button><button data-tmine="0" class="'+(trade.mine?'':'on')+'">Same as everyone</button></div></div>'+
+      '<label class="toggle" style="margin:0"><input type="checkbox" id="tFill"'+(trade.fill?' checked':'')+'><span><b>Fill a freed roster spot</b><br><small>In a 2-for-1, the team that gets fewer players picks up its best free agent.</small></span></label>'+
+      '</div>';
+    if(!st.playoffs.on) h+='<p class="note">Tip: turn on Playoffs in Settings to compare your playoff weeks separately.</p>';
+    if(!trade.team||!trade.give.length||!trade.get.length){
+      h+='<div class="card"><div class="empty-state">'+(!trade.team?'Pick a team':'Pick 1–2 players from each side')+' to see how the trade plays out for both teams.</div></div>';
+    } else if(!rangeT.days.length){
+      h+='<div class="card"><div class="empty-state">No days left in this range.</div></div>';
+    } else h+=tradeResultHTML(rangeT,slots,myRaw,theirs,mineN);
   }
   root.innerHTML=h;
-  $('#tGive').onchange=e=>{trade.give=+e.target.value;renderTrades();};
-  $('#tTeam').onchange=e=>{g.team=e.target.value;renderTrades();};
-  $('#tPPG').onchange=e=>{g.ppg=e.target.value;renderTrades();};
-  $('#tName').onchange=e=>{g.name=e.target.value.trim();};
-  root.querySelectorAll('[data-tpos]').forEach(b=>b.onclick=()=>{const x=b.dataset.tpos;g.pos=g.pos.includes(x)?g.pos.filter(y=>y!==x):POSITIONS.filter(y=>y===x||g.pos.includes(y));renderTrades();});
   root.querySelectorAll('[data-tr]').forEach(b=>b.onclick=()=>{if(finder.busy)return;trade.range=b.dataset.tr;renderTrades();});
   wireFinder(rangeT);
+  if($('#tTeam')) $('#tTeam').onchange=e=>{trade.team=e.target.value;trade.get=[];renderTrades();};
+  const toggle=(sel,p)=>{const i=sel.findIndex(r=>samePlayer(p,r));if(i>=0)sel.splice(i,1);else{if(sel.length>=2){toast('Up to 2 players a side');return false;}sel.push(pRef(p));}return true;};
+  root.querySelectorAll('[data-tg]').forEach(b=>b.onclick=()=>{if(toggle(trade.give,myRaw[+b.dataset.tg]))renderTrades();});
+  root.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{if(toggle(trade.get,theirs[+b.dataset.tt]))renderTrades();});
   root.querySelectorAll('[data-tmine]').forEach(b=>b.onclick=()=>{trade.mine=b.dataset.tmine==='1';renderTrades();});
-  wireAutocomplete($('#tName'),$('#tSugg'),d=>{$('#tName').blur();   // let the field's own change event fire first, then apply the pick
-    g.name=d.name;g.team=d.team;g.pos=d.pos.slice();
-    const known=['roster','ir','watch'].flatMap(l=>state.data[l]).find(q=>samePlayer(q,d));   // reuse his PPG if he's on your lists
-    if(g.ppg===''){const e=known?effPPG(known):null;const v=e&&e.key?e.val:dirProj(d);if(v!=null)g.ppg=String(Math.round(v*100)/100);}
-    renderTrades();});
+  if($('#tFill')) $('#tFill').onchange=e=>{trade.fill=e.target.checked;renderTrades();};
+}
+function tradeResultHTML(range,slots,myRaw,theirs,mineN){
+  const days=range.days;
+  const meR=myValued(trade.mine),me=sideModel(meR,days,slots),them=sideModel(theirs,days,slots);
+  const outs=trade.give.map(r=>myRaw.findIndex(p=>samePlayer(p,r))),ins=trade.get.map(r=>theirs.findIndex(p=>samePlayer(p,r)));
+  const fill=trade.fill?'exact':'none';
+  const needA=outs.length>ins.length,needB=ins.length>outs.length;   // only the side that frees a spot needs the free-agent search
+  const SA=needA&&trade.fill?spotModel(me,faPoolFor(trade.mine)):null,SB=needB&&trade.fill?spotModel(them,faPoolFor(false)):null;
+  const A=evalSide(me,outs,ins.map(j=>asMine(theirs[j],trade.mine)),{exactDrop:true,fill:needA?fill:'none',spot:SA});
+  const B=evalSide(them,ins,outs.map(k=>Object.assign({},meR[k],{proj:neutralMine(myRaw[k])})),{exactDrop:true,fill:needB?fill:'none',spot:SB});
+  // a side that fills a freed spot is compared with the swap it could make without the trade
+  const baseOf=(M,E,S)=>E.fill&&S&&S.swap?S.alt:M.roster;
+  const sides=[{name:mineN||'You',label:'You',M:me,E:A,gave:outs.map(k=>meR[k]),got:A.after.filter(p=>ins.some(j=>p.name===theirs[j].name&&p.team===theirs[j].team))},
+               {name:trade.team,label:'Them',M:them,E:B,gave:ins.map(j=>theirs[j]),got:B.after.filter(p=>outs.some(k=>p.name===myRaw[k].name&&p.team===myRaw[k].team))}];
+  const sg=x=>(x>=0?'+':'')+f1(x),si=x=>(x>0?'+':'')+x,cls=x=>x>0.05?'g':x<-0.05?'w':'';
+  sides[0].S=SA;sides[1].S=SB;
+  for(const s of sides){s.base=baseOf(s.M,s.E,s.S);s.sb=startsTotal(s.base,days,slots);s.sa=startsTotal(s.E.after,days,slots);}
+  const starts=(roster,p)=>{let n=0;for(const i of days){const ps=roster.filter(q=>plays(q.team,i));const {started}=solveDay(ps,slots);started.forEach(j=>{if(ps[j]===p)n++;});}return n;};
+  const col=s=>{
+    const e=s.E;
+    let c='<div class="tcol"><div class="tname1">'+esc(s.name)+'</div>'+
+      '<div class="tbig '+cls(e.gain)+'">'+sg(e.gain)+'</div><div class="tlbl">points</div>'+
+      '<div class="tline"><b>'+s.sb+' → '+s.sa+'</b> starts ('+si(s.sa-s.sb)+')</div>'+
+      '<div class="tlist"><span class="tlbl">Gives</span>'+s.gave.map(p=>'<div>'+esc(p.name)+'<small>'+starts(s.M.roster,p)+' starts · '+f2(p.proj)+'/gm</small></div>').join('')+'</div>'+
+      '<div class="tlist"><span class="tlbl">Gets</span>'+s.got.map(p=>'<div>'+esc(p.name)+'<small>'+starts(e.after,p)+' starts · '+f2(p.proj)+'/gm</small></div>').join('')+'</div>';
+    if(e.drop) c+='<div class="tlist"><span class="tlbl">Drops</span><div class="w">'+esc(e.drop.name)+'</div></div>';
+    if(e.fill) c+='<div class="tlist"><span class="tlbl">Open spot*</span><div>'+esc(e.fill.name)+'<small>'+esc(e.fill.team)+' · free agent'+(s.S&&s.S.swap?'; “before” = swapping '+esc(s.S.swap.out.name)+' for '+esc(s.S.swap.in.name):'')+'</small></div></div>';
+    else if(e.after.length<s.M.roster.length) c+='<div class="tlist"><span class="tlbl">Roster</span><div class="muted">1 open spot</div></div>';
+    return c+'</div>';
+  };
+  let h='<div class="card tcols" style="margin-top:12px">'+sides.map(col).join('')+'</div>';
+  h+='<p class="note">'+(trade.mine?'Your side uses your own values; ':'Both sides use the same values; ')+'their side uses '+esc(PPG_SOURCES.find(s=>s.key===state.data.settings.ppgSource).label.toLowerCase())+' numbers for every player.'+((A.fill||B.fill)?' *The team that frees a spot picks up its best free agent. It could already cut its least useful player for a free agent without trading, so its “before” includes that swap; the trade only gets credit for what the extra spot adds.':'')+' Starts are games each player starts in the optimized lineup over '+esc(range.label.toLowerCase())+'.</p>';
+  // by week, both sides
+  const wk=range.weeks.map(w=>{const d=days.filter(i=>SCHED.weeks[i]===w);return {w,d};}).filter(x=>x.d.length);
+  h+='<div class="sect"><h2>By week · '+range.label.toLowerCase()+'</h2></div><div class="card"><div class="twk thead"><span></span><span>You</span><span>Them</span></div>'+
+    wk.map(x=>{
+      const v=sides.map(s=>rangeTotal(s.E.after,x.d,slots)-rangeTotal(s.base,x.d,slots));
+      return '<div class="twk"><span><b>Wk '+x.w+'</b>'+(playoffWeeks().includes(x.w)?' <span class="badge">PO</span>':'')+'<small>'+md(dateOf(x.d[0]))+' – '+md(dateOf(x.d[x.d.length-1]))+'</small></span>'+
+        v.map(d=>'<span class="'+cls(d)+'">'+sg(d)+'</span>').join('')+'</div>';}).join('')+'</div>';
+  return h;
 }
 
 /* ===== Save files =====

@@ -132,6 +132,10 @@ nav.tabs button.on{color:var(--accent)}
 .preview{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
 .preview .row.bad{background:var(--warn-soft);color:var(--warn)}
 .muted{color:var(--muted)}
+.scgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:12px}
+.sc{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.sc span{flex:1;min-width:0;line-height:1.2}.sc b{display:block;color:var(--ink);font-size:13px}
+.sc input{width:64px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-size:14px;text-align:right}
 .wk7{display:flex;gap:3px;margin-top:6px;max-width:210px}
 .wk7.long{max-width:none;gap:2px}
 .wk7 span{min-width:0}
@@ -338,7 +342,7 @@ function currentWeek(){
 function plays(team,i){const s=SCHED.teams[team];return !!s && s[i]==='1';}
 
 /* ===== Storage (this browser only; always guarded) ===== */
-function blank(){return {roster:[],ir:[],watch:[],settings:{leagueName:'',slots:{...DEFAULT_SLOTS},spots:{...DEFAULT_SPOTS},yahooLeagueId:'',ppgSource:'derived',useManual:true,playoffs:{on:false,weeks:[]},maxAdds:4,sameDay:true},adds:{},proj:{asOf:'',source:'',list:[]},teams:[],lg:{asOf:'',source:'',players:[]},stash:{}};}
+function blank(){return {roster:[],ir:[],watch:[],settings:{leagueName:'',slots:{...DEFAULT_SLOTS},spots:{...DEFAULT_SPOTS},yahooLeagueId:'',ppgSource:'derived',useManual:true,playoffs:{on:false,weeks:[]},maxAdds:4,sameDay:true,scoring:defaultScoring()},adds:{},proj:{asOf:'',source:'',list:[]},teams:[],lg:{asOf:'',source:'',players:[]},stash:{}};}
 function normalize(d){
   const b=blank();
   if(!d||typeof d!=='object') return b;
@@ -360,6 +364,7 @@ function normalize(d){
   if(Array.isArray(d.teams)) b.teams=cleanTeams(d.teams);
   {const n=parseInt(s.maxAdds,10);if(Number.isFinite(n))b.settings.maxAdds=Math.max(0,Math.min(20,n));}
   if(s.sameDay===false) b.settings.sameDay=false;
+  if(s.scoring&&typeof s.scoring==='object') for(const c of SCORING){const v=numOrNull(s.scoring[c.key]);if(v!==null)b.settings.scoring[c.key]=v;}
   if(d.adds&&typeof d.adds==='object') for(const [w,n] of Object.entries(d.adds)){const v=parseInt(n,10);if(WEEKS.includes(+w)&&Number.isFinite(v)&&v>0)b.adds[w]=Math.min(20,v);}
   b.stash=cleanStash(d.stash);
   if(d.lg&&Array.isArray(d.lg.players)) b.lg={asOf:String(d.lg.asOf||''),source:String(d.lg.source||''),players:cleanLgPlayers(d.lg.players)};
@@ -505,10 +510,78 @@ function cleanPlayer(p){
    has a value. */
 const PPG_SOURCES=[
   {key:'derived',label:'Projected',short:'proj',perStart:false},
-  {key:'l14',label:'Last 14 days',short:'L14',perStart:true},
-  {key:'l30',label:'Last 30 days',short:'L30',perStart:true}
+  {key:'season',label:'Season',short:'Szn',perStart:true},
+  {key:'l30',label:'Last 30',short:'L30',perStart:true},
+  {key:'l14',label:'Last 14',short:'L14',perStart:true}
 ];
-const FALLBACK={derived:['derived','l30','l14'],l14:['l14','l30','derived'],l30:['l30','l14','derived']};
+const FALLBACK={derived:['derived','season','l30','l14'],season:['season','l30','derived'],l30:['l30','season','l14','derived'],l14:['l14','l30','season','derived']};
+/* League scoring, mirroring Yahoo's categories. Points are worked out from the
+   NHL totals in nhl-stats.json, so changing a weight needs no new download. */
+const SCORING=[
+  {key:'G',label:'Goals',grp:'s',def:3},{key:'A',label:'Assists',grp:'s',def:2},{key:'PM',label:'Plus/minus',grp:'s',def:0.5},
+  {key:'PIM',label:'Penalty minutes',grp:'s',def:0.25},{key:'PPG',label:'Power-play goals',grp:'s',def:0.5},{key:'PPA',label:'Power-play assists',grp:'s',def:0.5},
+  {key:'SHG',label:'Shorthanded goals',grp:'s',def:2},{key:'SHA',label:'Shorthanded assists',grp:'s',def:1},{key:'GWG',label:'Game-winning goals',grp:'s',def:1},
+  {key:'SOG',label:'Shots on goal',grp:'s',def:0.2},{key:'HIT',label:'Hits',grp:'s',def:0.2},{key:'BLK',label:'Blocks',grp:'s',def:0.5},
+  {key:'GS',label:'Games started',grp:'g',def:0.5},{key:'W',label:'Wins',grp:'g',def:2},{key:'L',label:'Losses (regulation)',grp:'g',def:-1},
+  {key:'OTL',label:'OT/SO losses',grp:'g',def:0},{key:'GA',label:'Goals against',grp:'g',def:-0.5},{key:'SV',label:'Saves',grp:'g',def:0.2},{key:'SHO',label:'Shutouts',grp:'g',def:2}
+];
+function defaultScoring(){const o={};SCORING.forEach(c=>o[c.key]=c.def);return o;}
+
+/* ===== NHL stats (nhl-stats.json, refreshed by a GitHub Action) ===== */
+const NHL_KEY='lineupOptimizer.nhl';
+let NHL=null;
+function nhlLoadCache(){try{const t=localStorage.getItem(NHL_KEY);if(t){const d=JSON.parse(t);if(d&&d.app==='nhl-stats')NHL=d;}}catch(e){}}
+function nhlSet(doc,persist){NHL=doc;NHL_MEMO.clear();if(persist){try{localStorage.setItem(NHL_KEY,JSON.stringify(doc));}catch(e){}}}
+const NHL_MEMO=new Map();
+function nhlRow(p){
+  if(!NHL) return null;
+  const d=p.id?null:dirLookup(p),id=String(p.id||(d&&d.id)||'');
+  if(!id) return null;
+  if(NHL.goalies[id]) return {g:true,r:NHL.goalies[id]};
+  if(NHL.skaters[id]) return {g:false,r:NHL.skaters[id]};
+  return null;
+}
+function teamGamesSince(team,since){   // games his team has played from `since` through the stats date
+  const a=Math.max(0,since?Math.round((parseDate(since)-START)/86400000):0),b=Math.round((parseDate(NHL.asOf)-START)/86400000);
+  let n=0;for(let i=a;i<=b;i++)if(plays(team,i))n++;return n;
+}
+/* Fantasy points per game (skaters) or per start (goalies) over a window, with
+   the goalie's share of his team's starts. null when he hasn't played in it. */
+function nhlVal(p,w){
+  const x=nhlRow(p); if(!x) return null;
+  const ck=(p.id||p.name+'|'+p.team)+'|'+w;
+  if(NHL_MEMO.has(ck)) return NHL_MEMO.get(ck);
+  const S=state.data.settings.scoring,arr=x.r[3+['season','l30','l14'].indexOf(w)];
+  let out=null;
+  if(arr){
+    if(x.g){
+      const [gp,gs,W,L,otl,ga,sv,sho]=arr;
+      if(gs>0){const pts=gs*S.GS+W*S.W+L*S.L+otl*S.OTL+ga*S.GA+sv*S.SV+sho*S.SHO;
+        const tg=teamGamesSince(x.r[1]||p.team,NHL.windows[w]);
+        out={val:pts/gs,start:tg?Math.min(100,Math.round(100*gs/tg)):null,gp:gs};}
+    } else {
+      const [gp,g,a,pm,pim,ppg,ppp,shg,shp,gwg,sog,hit,blk]=arr;
+      if(gp>0){const pts=g*S.G+a*S.A+pm*S.PM+pim*S.PIM+ppg*S.PPG+(ppp-ppg)*S.PPA+shg*S.SHG+(shp-shg)*S.SHA+gwg*S.GWG+sog*S.SOG+hit*S.HIT+blk*S.BLK;
+        out={val:pts/gp,gp};}
+    }
+  }
+  NHL_MEMO.set(ck,out);return out;
+}
+function nhlStatus(){
+  if(!NHL) return 'No NHL stats loaded yet.';
+  return 'NHL stats through '+esc(NHL.asOf)+' · '+Object.keys(NHL.skaters).length+' skaters, '+Object.keys(NHL.goalies).length+' goalies';
+}
+async function nhlFetch(manual){
+  try{
+    const r=await fetch('nhl-stats.json',{cache:'no-cache'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(!d||d.app!=='nhl-stats') throw new Error('not a stats file');
+    const newer=!NHL||d.fetchedAt!==NHL.fetchedAt;
+    nhlSet(d,true);
+    if(newer||manual){renderAll();if(manual)toast('Stats through '+d.asOf);}
+  }catch(e){if(manual)toast('Couldn’t load nhl-stats.json'+(NHL?' · keeping stats through '+NHL.asOf:''));}
+}
 function numOrNull(v){if(v===null||v===undefined||v==='')return null;const n=parseFloat(String(v).replace(',','.'));return Number.isFinite(n)?n:null;}
 function pctOrNull(v){
   if(v===null||v===undefined||v==='')return null;
@@ -522,11 +595,19 @@ function effPPG(p){
   const st=state.data.settings;
   let key=null,val=null;
   if(st.useManual&&p.manual!=null){key='manual';val=p.manual;}
-  else for(const k of FALLBACK[st.ppgSource]||FALLBACK.derived){const v=k==='derived'?projOf(p):(p[k]!=null?p[k]:(()=>{const r=lgLookup(p);return r&&r[k]!=null?r[k]:null;})());if(v!=null){key=k;val=v;break;}}
+  let start=p.start!=null?p.start:null;
+  if(key===null) for(const k of FALLBACK[st.ppgSource]||FALLBACK.derived){
+    let v=null;
+    if(k==='derived') v=projOf(p);
+    else if(p[k]!=null) v=p[k];                                   // typed in the editor
+    else {const n=nhlVal(p,k);if(n){v=n.val;if(start==null&&n.start!=null)start=n.start;}   // NHL stats + your scoring
+      else {const r=lgLookup(p);if(r&&r[k]!=null)v=r[k];}}        // league-data column
+    if(v!=null){key=k;val=v;break;}
+  }
   if(key===null) return {val:0,key:null,base:0,scaled:false};
   const perStart=key==='manual'||PPG_SOURCES.find(s=>s.key===key).perStart;
-  const scaled=perStart&&isGoalie(p)&&p.start!=null&&p.start!==100;
-  return {val:scaled?val*p.start/100:val,key,base:val,scaled};
+  const scaled=perStart&&isGoalie(p)&&start!=null&&start!==100;
+  return {val:scaled?val*start/100:val,key,base:val,scaled,start};
 }
 function srcShort(key){return key==='manual'?'man':key?PPG_SOURCES.find(s=>s.key===key).short:'none';}
 /* Copies of the players with .proj set to the value the optimizer should use. */
@@ -834,7 +915,7 @@ const UNLOCK_SVG='<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height=
 
 /* One player card. Swipe it left to reveal buttons that move it to the other
    two lists; tap it to edit; tap the lock to allow or block it as a drop candidate. */
-function srcTag(p){const e=p.eff;if(!e||e.key===null)return '<span class="src src-none">none</span>';return '<span class="src src-'+e.key+'">'+srcShort(e.key)+(e.scaled?' '+p.start+'%':'')+'</span>';}
+function srcTag(p){const e=p.eff;if(!e||e.key===null)return '<span class="src src-none">none</span>';return '<span class="src src-'+e.key+'">'+srcShort(e.key)+(e.scaled?' '+e.start+'%':'')+'</span>';}
 /* Mini schedule for the fantasy week: one box per day. Filled = starts in the
    optimized lineup, orange = plays but benched, empty = no game. Days already
    played are faded; today is outlined. */
@@ -1532,7 +1613,7 @@ function effectiveProjections(){
 }
 function buildSave(kind){
   const st=state.data.settings,sec={};
-  if(kind==='full'||kind==='league') sec.league={name:st.leagueName,slots:{...st.slots},spots:{...st.spots},playoffs:{on:st.playoffs.on,weeks:st.playoffs.weeks.slice()},maxAdds:st.maxAdds,sameDay:st.sameDay};
+  if(kind==='full'||kind==='league') sec.league={name:st.leagueName,slots:{...st.slots},spots:{...st.spots},playoffs:{on:st.playoffs.on,weeks:st.playoffs.weeks.slice()},maxAdds:st.maxAdds,sameDay:st.sameDay,scoring:{...st.scoring}};
   if((kind==='full'||kind==='league')&&state.data.teams.length) sec.teams=state.data.teams.map(t=>({...t}));
   if((kind==='full'||kind==='leaguedata')&&state.data.lg.players.length) sec.leagueData={asOf:state.data.lg.asOf,players:state.data.lg.players};
   if(kind==='full'||kind==='team') sec.team={roster:state.data.roster,ir:state.data.ir,watch:state.data.watch};
@@ -1643,6 +1724,7 @@ const SECTION_INFO={
   leagueData:{label:'League player data',sum:s=>{const p=s.players||[];return p.length+' players · '+p.filter(r=>r.owner&&!FA_WORDS.test(r.owner)).length+' owned'+(p.some(r=>r.l14!=null||r.l30!=null)?' · with Last 14/30':'')+(s.asOf?' · as of '+esc(s.asOf):'');},warn:'Replaces owners, roster slots, status and Last 14/30'}
 };
 function openImport(text,fname){
+  try{const d=JSON.parse(text);if(d&&d.app==='nhl-stats'){nhlSet(d,true);toast('NHL stats through '+d.asOf);renderAll();return;}}catch(e){}
   const r=readSave(text);
   if(!r||!Object.keys(r.sections).length){toast('Nothing the app can read in '+(fname||'that file'));return;}
   const keys=['league','teams','leagueData','team','projections','prefs'].filter(k=>r.sections[k]);
@@ -1663,6 +1745,7 @@ function applySections(sec,pick,fname){
     const n=normalize({settings:{leagueName:sec.league.name,slots:sec.league.slots,spots:sec.league.spots,playoffs:sec.league.playoffs,maxAdds:sec.league.maxAdds,sameDay:sec.league.sameDay}});
     st.leagueName=n.settings.leagueName;st.slots=n.settings.slots;st.spots=n.settings.spots;st.playoffs=n.settings.playoffs;
     if(sec.league.maxAdds!=null)st.maxAdds=n.settings.maxAdds; if(sec.league.sameDay!=null)st.sameDay=n.settings.sameDay;
+    if(sec.league.scoring){const m=normalize({settings:{scoring:sec.league.scoring}});st.scoring=m.settings.scoring;NHL_MEMO.clear();}
   }
   if(pick.includes('prefs')){
     const n=normalize({settings:{ppgSource:sec.prefs.ppgSource,useManual:sec.prefs.useManual,yahooLeagueId:sec.prefs.yahooLeagueId}});
@@ -1717,13 +1800,18 @@ function renderSettings(){
     (st.playoffs.on?'<div class="wkchips">'+WEEKS.map(w=>{const d=weekDays(w);return '<button class="fbtn'+(st.playoffs.weeks.includes(w)?' on':'')+'" data-pw="'+w+'">Wk '+w+'<small>'+md(dateOf(d[0]))+'</small></button>';}).join('')+'</div>'+
       '<p class="note" style="margin:8px 0 0">'+(st.playoffs.weeks.length?'Playoffs: '+playoffLabel():'No playoff weeks selected yet.')+'</p>':'')+
     '</div>'+
+    '<div class="sect"><h2>Scoring</h2></div><div class="card pad">'+
+      ['s','g'].map(gp=>'<div class="field" style="margin-bottom:6px"><label>'+(gp==='s'?'Skaters':'Goalies')+'</label></div><div class="scgrid">'+
+        SCORING.filter(c=>c.grp===gp).map(c=>'<label class="sc"><span><b>'+c.key+'</b>'+esc(c.label)+'</span><input type="number" inputmode="decimal" step="0.05" data-sc="'+c.key+'" value="'+st.scoring[c.key]+'"></label>').join('')+'</div>').join('')+
+      '<p class="note" style="margin:8px 0 0">Same categories as Yahoo. Yahoo doesn’t score OT/shootout losses, so OTL is 0 there. <a href="#" id="scReset">Reset to league defaults</a></p></div>'+
+    '<div class="sect"><h2>NHL stats</h2></div><div class="card pad"><div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0;font-size:14px">'+nhlStatus()+(NHL?'<br><span class="muted" style="font-size:12.5px">Updated '+esc(new Date(NHL.fetchedAt).toLocaleString())+'</span>':'<br><span class="muted" style="font-size:12.5px">They load from nhl-stats.json next to the app, which a GitHub Action refreshes twice a day.</span>')+'</div><button class="btn" id="nhlRefresh">Refresh</button></div></div>'+
     '<div class="sect"><h2>Points per game</h2></div><div class="card pad">'+
     '<div class="field"><label>Use PPG from</label><div class="seg" id="sSource" style="margin-top:0">'+
       PPG_SOURCES.map(s=>'<button data-src="'+s.key+'">'+s.label+'</button>').join('')+'</div>'+
       '<small>If a player has no value for this source, the next available one is used: '+
       PPG_SOURCES.map(s=>s.label+' → '+FALLBACK[s.key].slice(1).map(k=>PPG_SOURCES.find(x=>x.key===k).label).join(' → ')).join('; ')+'.</small></div>'+
     '<label class="toggle"><input type="checkbox" id="sManual"'+(st.useManual?' checked':'')+'><span><b>Manual overrides when entered</b><br><small>Turn off to compare against the selected source without deleting your manual values.</small></span></label>'+
-    '<p class="note" style="margin:10px 0 0">Last 14 and Last 30 fill in once Yahoo is connected. Goalie start % scales Manual and Yahoo values; Projected already includes it.</p></div>'+
+    '<p class="note" style="margin:10px 0 0">Season, Last 30 and Last 14 are fantasy points per game from NHL stats with your scoring. For goalies they’re per start, multiplied by his share of his team’s starts over the same days (a start % you type in wins). Projected already includes starts.</p></div>'+
 
     '<div class="sect"><h2>Save &amp; restore</h2></div>'+
     '<p class="note">Everything lives only in this browser. Download a save file to back it up or move it to another device (Files, OneDrive, email…), then Import it there.</p>'+
@@ -1774,6 +1862,9 @@ function renderSettings(){
   root.querySelector('[data-adec]').onclick=()=>{st.maxAdds=Math.max(0,(st.maxAdds||0)-1);save();renderSettings();};
   root.querySelector('[data-ainc]').onclick=()=>{st.maxAdds=Math.min(20,(st.maxAdds||0)+1);save();renderSettings();};
   $('#sSameDay').onchange=e=>{st.sameDay=e.target.checked;save();};
+  root.querySelectorAll('[data-sc]').forEach(inp=>inp.onchange=()=>{const v=numOrNull(inp.value);if(v===null){inp.value=st.scoring[inp.dataset.sc];return;}st.scoring[inp.dataset.sc]=v;NHL_MEMO.clear();save();});
+  $('#scReset').onclick=e=>{e.preventDefault();st.scoring=defaultScoring();NHL_MEMO.clear();save();renderSettings();toast('Scoring reset');};
+  $('#nhlRefresh').onclick=()=>nhlFetch(true);
   const T=state.data.teams;
   root.querySelectorAll('[data-mine]').forEach(r=>r.onchange=()=>{switchTeam(+r.dataset.mine);renderAll();});
   root.querySelectorAll('[data-tname]').forEach(inp=>inp.onchange=()=>{const i=+inp.dataset.tname,old=T[i].name,nw=inp.value.trim();
@@ -1844,9 +1935,9 @@ function openEditor(list,k){
     '<div class="field"><label>Positions</label><div class="posbtns">'+POSITIONS.map(x=>'<button type="button" data-pos="'+x+'" class="'+(p.pos.includes(x)?'on':'')+'">'+x+'</button>').join('')+'</div></div>'+
     '<div class="field" style="margin-bottom:6px"><label>Points per game</label></div>'+
     '<div class="pair">'+numField('eManual','Manual',p.manual,'Overrides the others')+numField('eDerived','Projected',p.derived,(()=>{const d=isNew?null:dirLookup(p);const v=d?dirProj(d):null;return v!=null?'Blank = list value '+f2(v):'Season projection per team game';})())+'</div>'+
-    '<div class="pair">'+numField('eL14','Last 14 days',p.l14,'From Yahoo')+numField('eL30','Last 30 days',p.l30,'From Yahoo')+'</div>'+
+    '<div class="pair">'+numField('eL14','Last 14 days',p.l14,(()=>{const n=isNew?null:nhlVal(p,'l14');return n?'Blank = NHL '+f2(n.val)+(n.start!=null?' · '+n.start+'% starts':''):'Blank = NHL stats';})())+numField('eL30','Last 30 days',p.l30,(()=>{const n=isNew?null:nhlVal(p,'l30');return n?'Blank = NHL '+f2(n.val)+(n.start!=null?' · '+n.start+'% starts':''):'Blank = NHL stats';})())+'</div>'+
     '<div class="field" id="eStartWrap"><label>Start % (goalies)</label><input id="eStart" type="number" inputmode="numeric" step="1" min="0" max="100" placeholder="100" value="'+v(p.start)+'">'+
-    '<small>Scales Manual and Yahoo values, which are per start. Projected already includes it.</small></div>'+
+    '<small>Blank = his share of starts from NHL stats. Scales per-start values (Manual, Season, Last 30/14); Projected already includes it.</small></div>'+
     '<div class="actions"><button class="btn primary grow" id="eSave">Save</button>'+
     (isNew?'':others.map(o=>'<button class="btn" data-emove="'+o+'">To '+LIST_NAMES[o]+'</button>').join('')+'<button class="btn danger" id="eDel">Delete</button>')+
     '<button class="btn" id="eCancel">Cancel</button></div>');
@@ -1959,7 +2050,9 @@ function goWeek(delta){
 }
 $('#prevWk').onclick=()=>goWeek(-1);
 $('#nextWk').onclick=()=>goWeek(1);
+nhlLoadCache();
 renderAll();
+nhlFetch(false);
 
 </script>
 </body>

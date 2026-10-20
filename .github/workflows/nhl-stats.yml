@@ -5,7 +5,6 @@ name: Refresh NHL stats
 on:
   schedule:
     - cron: "17 10 * * *"   # ~6:17 am Toronto (5:17 in winter)
-    - cron: "17 17 * * *"   # ~1:17 pm Toronto
   workflow_dispatch:
 permissions:
   contents: write

@@ -132,6 +132,7 @@ nav.tabs button.on{color:var(--accent)}
 .preview{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
 .preview .row.bad{background:var(--warn-soft);color:var(--warn)}
 .muted{color:var(--muted)}
+#rangeSeg button{white-space:nowrap;padding:7px 2px}
 .note.w{color:var(--warn)}
 .tlooks{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13.5px}.tlooks>div{flex:1;min-width:0}.tlooks .tlbl{margin-bottom:2px}
 .badge.ok{background:var(--good-soft);color:var(--good)}.badge.warn{background:var(--warn-soft);color:var(--warn)}
@@ -251,6 +252,8 @@ a{color:var(--accent)}
       <button data-r="rest">Rest of week</button>
       <button data-r="full">Full week</button>
       <button data-r="season">Season</button>
+      <button data-r="rseason">Season</button>
+      <button data-r="playoffs">Playoffs</button>
     </div>
     <div class="seg hidden" id="trSeg" aria-label="Trade range"></div>
     <div class="seg hidden" id="lgSeg" aria-label="League view"></div>
@@ -839,7 +842,14 @@ function findMatch(p,rows){
 
 /* ===== App state ===== */
 const state={faOnly:true,data:load(),week:currentWeek(),range:null,tab:'lineup',posFilter:'All',minGames:1,collapsed:{}};
+function rosterSpan(){   // Roster tab only: 'rseason' = rest of regular season, 'playoffs' = playoff weeks still to play
+  if(state.tab!=='roster'||!state.rosterRange) return null;
+  const rs=tradeRanges(),r=state.rosterRange==='playoffs'?rs.find(x=>x.key==='po'):rs[0];
+  if(!r){state.rosterRange=null;return null;}
+  return r;
+}
 function activeDays(){
+  const span=rosterSpan(); if(span) return span.days;
   const days=weekDays(state.week);
   if(state.range==='rest'){const ti=todayIndex();return days.filter(i=>i>=ti);}
   return days;
@@ -873,14 +883,18 @@ function renderHeader(){
   $('#wkTitle').innerHTML='Week '+state.week+'<small>'+(lg?esc(lg)+' · ':'')+md(dateOf(days[0]))+' – '+md(dateOf(days[days.length-1]))+' · '+days.length+' days</small>';
   $('#prevWk').disabled=state.week===WEEKS[0];
   $('#nextWk').disabled=state.week===WEEKS[WEEKS.length-1];
-  const season=state.seasonView&&state.tab==='lineup';
+  const season=!!state.seasonView&&state.tab==='lineup';
+  const span=rosterSpan(),onRoster=state.tab==='roster',hasPO=playoffWeeks().length>0;
   document.querySelectorAll('#rangeSeg button').forEach(b=>{
-    b.classList.toggle('on',b.dataset.r==='season'?season:(!season&&b.dataset.r===state.range));
-    if(b.dataset.r==='season') b.classList.toggle('hidden',state.tab!=='lineup');   // season overview lives on the Lineup tab
+    const r=b.dataset.r;
+    if(r==='rseason'||r==='playoffs'){b.classList.toggle('hidden',!onRoster||(r==='playoffs'&&!hasPO));b.classList.toggle('on',onRoster&&state.rosterRange===r);return;}
+    b.classList.toggle('on',!!(r==='season'?season:(!season&&!span&&r===state.range)));
+    if(r==='season') b.classList.toggle('hidden',state.tab!=='lineup');   // season overview lives on the Lineup tab
   });
+  if(span) $('#wkTitle').innerHTML='Roster<small>'+(state.rosterRange==='playoffs'?'Playoffs · '+playoffLabel():'Rest of the regular season · '+span.days.length+' days')+'</small>';
   if(season){const pw=playoffWeeks();$('#wkTitle').innerHTML='Season<small>'+(lg?esc(lg)+' · ':'')+'Every fantasy week'+(pw.length?' · playoffs '+pw.join(', '):'')+'</small>';}
   if(state.tab==='league'&&league.view!=='week'){const R=leagueRange();$('#wkTitle').innerHTML='League<small>'+(league.view==='playoffs'?(playoffWeeks().length?'Playoffs · '+playoffLabel():'Playoffs not set up'):'Rest of the regular season'+(R&&R.days.length?' · '+R.days.length+' days':''))+'</small>';}
-  const set=state.tab==='settings'||state.tab==='trades'||season||(state.tab==='league'&&league.view!=='week');
+  const set=state.tab==='settings'||state.tab==='trades'||season||!!span||(state.tab==='league'&&league.view!=='week');
   if(state.tab==='settings') $('#wkTitle').innerHTML='Settings<small>Saved in this browser only</small>';
   if(state.tab==='trades') $('#wkTitle').innerHTML='Trades<small>Both teams as-is vs. with the trade, from today on</small>';
   $('#prevWk').style.visibility=$('#nextWk').style.visibility=set?'hidden':'';
@@ -1039,7 +1053,7 @@ function renderRoster(){
   // plus anyone tied with the 3rd lowest.
   const wkPts=roster.map((p,k)=>Math.round((p.proj||0)*r.perPlayer[k].starts*10)/10);   // compared as shown (1 decimal)
   const cutoff=[...wkPts].sort((x,y)=>x-y)[Math.min(2,wkPts.length-1)];
-  const ptsLabel=state.range==='rest'?'pts left':'wk pts';
+  const ptsLabel=state.rosterRange?(state.rosterRange==='playoffs'?'playoff pts':'pts left'):state.range==='rest'?'pts left':'wk pts';
   roster.forEach((p,k)=>{
     const s=r.perPlayer[k],low=roster.length>3&&wkPts[k]<=cutoff;
     const num='<div class="num'+(low?' low':'')+'"><b>'+f1(wkPts[k])+'</b><span>'+ptsLabel+' · '+f2(p.proj||0)+'/gm '+srcTag(p)+'</span></div>';
@@ -2385,7 +2399,10 @@ function goTab(tab){
 }
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>goTab(b.dataset.tab));
 document.querySelectorAll('#rangeSeg button').forEach(b=>b.onclick=()=>{
-  if(b.dataset.r==='season') state.seasonView=true; else {state.seasonView=false;state.range=b.dataset.r;}
+  const r=b.dataset.r;
+  if(r==='rseason'||r==='playoffs'){state.rosterRange=r;}
+  else if(r==='season') state.seasonView=true;
+  else {state.seasonView=false;state.range=r;if(state.tab==='roster')state.rosterRange=null;}
   state.collapsed={};window.scrollTo(0,0);renderAll();
 });
 function goWeek(delta){

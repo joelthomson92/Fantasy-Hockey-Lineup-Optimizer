@@ -1,9 +1,11 @@
 """Pull NHL regular-season stats into nhl-stats.json for the lineup app.
 
 Uses the NHL's public stats API (api.nhle.com/stats/rest). For each window -
-the whole season, the last 30 days and the last 14 days - it asks for every
-player's totals over that window (one request per report), so a full refresh
-is about nine requests. The app turns the totals into fantasy points with
+the whole season, the last 30 days, the last 14 days and all of last season -
+it asks for every player's totals over that window (one request per report).
+Last season never changes, so it's downloaded once and then copied forward
+from the existing nhl-stats.json on every later run (set NHL_REFRESH_LAST=1 to
+download it again). A normal morning run is about nine requests. The app turns the totals into fantasy points with
 your league's scoring, so changing scoring never needs a new download.
 
 Standard library only. Run:  python scripts/fetch_nhl_stats.py [output path]
@@ -77,13 +79,35 @@ def main():
     windows = {"season": None,
                "l30": (as_of - dt.timedelta(days=29)).isoformat(),
                "l14": (as_of - dt.timedelta(days=13)).isoformat()}
-    order = ["season", "l30", "l14"]
+    order = ["season", "l30", "l14", "last"]
+    prev = f"{int(season[:4]) - 1}{season[:4]}"
     skaters, goalies = {}, {}
+    # reuse last season from the previous file when we already have it
+    kept = None
+    if os.path.exists(out_path) and not os.environ.get("NHL_REFRESH_LAST"):
+        try:
+            with open(out_path, encoding="utf-8") as f:
+                old = json.load(f)
+            if old.get("lastSeason") == prev:
+                kept = old
+        except Exception:
+            kept = None
     for w in order:
-        since = windows[w]
-        print(f"{w}: since {since or 'season start'}")
-        summ = report("skater", "summary", season, since)
-        real = {r["playerId"]: r for r in report("skater", "realtime", season, since)}
+        if w == "last" and kept:
+            n = 0
+            for grp, cur in (("skaters", skaters), ("goalies", goalies)):
+                for pid, rec in kept.get(grp, {}).items():
+                    if len(rec) > 6 and rec[6]:
+                        mine = cur.setdefault(pid, rec[:3] + [None, None, None, None])
+                        mine[6] = rec[6]
+                        n += 1
+            print(f"last: {prev} reused from {out_path} ({n} players)")
+            continue
+        since = windows.get(w)
+        sid = prev if w == "last" else season
+        print(f"{w}: {sid} since {since or 'season start'}")
+        summ = report("skater", "summary", sid, since)
+        real = {r["playerId"]: r for r in report("skater", "realtime", sid, since)}
         for r in summ:
             if not r.get("playerId"):
                 continue
@@ -93,22 +117,23 @@ def main():
                     r.get("penaltyMinutes"), r.get("ppGoals"), r.get("ppPoints"), r.get("shGoals"),
                     r.get("shPoints"), r.get("gameWinningGoals"), r.get("shots"),
                     x.get("hits"), x.get("blockedShots")]
-            rec = skaters.setdefault(pid, [r.get("skaterFullName", ""), team_of(r), r.get("positionCode", ""), None, None, None])
+            rec = skaters.setdefault(pid, [r.get("skaterFullName", ""), team_of(r), r.get("positionCode", ""), None, None, None, None])
             rec[3 + order.index(w)] = [int(v or 0) for v in vals]
-            if w != "season" and team_of(r):
+            if w in ("l30", "l14") and team_of(r):
                 rec[1] = team_of(r)  # most recent window wins for the current team
-        for r in report("goalie", "summary", season, since):
+        for r in report("goalie", "summary", sid, since):
             if not r.get("playerId"):
                 continue
             pid = str(r["playerId"])
             vals = [r.get("gamesPlayed"), r.get("gamesStarted"), r.get("wins"), r.get("losses"),
                     r.get("otLosses"), r.get("goalsAgainst"), r.get("saves"), r.get("shutouts")]
-            rec = goalies.setdefault(pid, [r.get("goalieFullName", ""), team_of(r), "G", None, None, None])
+            rec = goalies.setdefault(pid, [r.get("goalieFullName", ""), team_of(r), "G", None, None, None, None])
             rec[3 + order.index(w)] = [int(v or 0) for v in vals]
-            if w != "season" and team_of(r):
+            if w in ("l30", "l14") and team_of(r):
                 rec[1] = team_of(r)
         print(f"  {len(summ)} skaters so far {len(skaters)}, goalies {len(goalies)}")
-    doc = {"app": "nhl-stats", "format": 1, "season": season, "asOf": as_of.isoformat(),
+    windows["last"] = prev
+    doc = {"app": "nhl-stats", "format": 1, "season": season, "lastSeason": prev, "asOf": as_of.isoformat(),
            "fetchedAt": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
            "windows": windows, "skaterCols": SKATER_COLS, "goalieCols": GOALIE_COLS,
            "skaters": skaters, "goalies": goalies}

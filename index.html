@@ -132,6 +132,9 @@ nav.tabs button.on{color:var(--accent)}
 .preview{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
 .preview .row.bad{background:var(--warn-soft);color:var(--warn)}
 .muted{color:var(--muted)}
+.seg.tri{flex:none;width:118px}.seg.tri button{padding:6px 0;font-size:14px}
+.seg.tri button[data-v="p"].on{color:#b8860b}.seg.tri button[data-v="x"].on{color:var(--bad)}
+.star{color:#d4a017}
 #rangeSeg button{white-space:nowrap;padding:7px 2px}
 .note.w{color:var(--warn)}
 .tlooks{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13.5px}.tlooks>div{flex:1;min-width:0}.tlooks .tlbl{margin-bottom:2px}
@@ -380,7 +383,7 @@ function currentWeek(){
 function plays(team,i){const s=SCHED.teams[team];return !!s && s[i]==='1';}
 
 /* ===== Storage (this browser only; always guarded) ===== */
-function blank(){return {roster:[],ir:[],watch:[],settings:{leagueName:'',slots:{...DEFAULT_SLOTS},spots:{...DEFAULT_SPOTS},yahooLeagueId:'',ppgSource:'derived',useManual:true,playoffs:{on:false,weeks:[]},maxAdds:4,sameDay:true,scoring:defaultScoring()},adds:{},proj:{asOf:'',source:'',list:[]},teams:[],lg:{asOf:'',source:'',players:[]},stash:{}};}
+function blank(){return {roster:[],ir:[],watch:[],settings:{leagueName:'',slots:{...DEFAULT_SLOTS},spots:{...DEFAULT_SPOTS},yahooLeagueId:'',ppgSource:'derived',useManual:true,playoffs:{on:false,weeks:[]},maxAdds:4,sameDay:true,scoring:defaultScoring()},adds:{},proj:{asOf:'',source:'',list:[]},teams:[],lg:{asOf:'',source:'',players:[]},stash:{},tprefs:{}};}
 function normalize(d){
   const b=blank();
   if(!d||typeof d!=='object') return b;
@@ -405,6 +408,7 @@ function normalize(d){
   if(s.scoring&&typeof s.scoring==='object') for(const c of SCORING){const v=numOrNull(s.scoring[c.key]);if(v!==null)b.settings.scoring[c.key]=v;}
   if(d.adds&&typeof d.adds==='object') for(const [w,n] of Object.entries(d.adds)){const v=parseInt(n,10);if(WEEKS.includes(+w)&&Number.isFinite(v)&&v>0)b.adds[w]=Math.min(20,v);}
   b.stash=cleanStash(d.stash);
+  if(d.tprefs&&typeof d.tprefs==='object') for(const [k,v] of Object.entries(d.tprefs)) if(v==='p'||v==='x') b.tprefs[String(k)]=v;
   if(d.lg&&Array.isArray(d.lg.players)) b.lg={asOf:String(d.lg.asOf||''),source:String(d.lg.source||''),players:cleanLgPlayers(d.lg.players)};
   if(d.proj&&Array.isArray(d.proj.list)) b.proj={asOf:String(d.proj.asOf||''),source:String(d.proj.source||''),list:cleanProjList(d.proj.list)};
   return b;
@@ -1657,13 +1661,48 @@ function srcLabel(k){return PPG_SOURCES.find(s=>s.key===k).label;}
    2. Solve: score those fair-looking trades with the "solve" numbers over the
       chosen days, re-optimizing both teams' daily lineups (schedule, positions,
       bench crunch), and rank by what they do for you. */
-const finder={noGoalies:false,team:'',sort:'me',size:'1x1',match:'season',solve:'derived',tol:0.1,results:null,sig:'',busy:false,progress:0,shown:25};
-function finderSig(range,team){return JSON.stringify([team||'',range.key,range.days.length,state.data.roster,state.data.ir,state.data.settings,state.data.stash,state.data.lg.asOf,state.data.lg.players.length,myTeamName(),finder.size,finder.match,finder.solve,finder.tol,finder.noGoalies,PPG_SIGNATURE(),NHL&&NHL.fetchedAt]);}
+const finder={onlyPref:false,noGoalies:false,team:'',sort:'me',size:'1x1',match:'season',solve:'derived',tol:0.1,results:null,sig:'',busy:false,progress:0,shown:25};
+function finderSig(range,team){return JSON.stringify([team||'',range.key,range.days.length,state.data.roster,state.data.ir,state.data.settings,state.data.stash,state.data.lg.asOf,state.data.lg.players.length,myTeamName(),finder.size,finder.match,finder.solve,finder.tol,finder.noGoalies,finder.onlyPref,state.data.tprefs,PPG_SIGNATURE(),NHL&&NHL.fetchedAt]);}
 function PPG_SIGNATURE(){return state.data.proj.asOf+'|'+state.data.proj.list.length;}
-function looksFair(give,get){   // per-game totals by the match source, as a league-mate would add them up
-  const a=give,b=get,hi=Math.max(a,b);
-  return hi<=0?true:Math.abs(a-b)<=finder.tol*hi;
+/* Replacement level: what a league-mate could pick up for free. For each
+   position group it's the average of the 10 best unowned players by the match
+   source, counting only players with a real sample (at least 40% of their
+   team's games in that window; goalies 25% of starts). */
+function posGroup(p){return p.pos.includes('G')?'G':(p.pos.every(x=>x==='D')?'D':'F');}
+function replacementLevel(src){
+  const vals={F:[],D:[],G:[]},ti=todayIndex();
+  for(const d0 of DIR){
+    if(ownerOf(d0)) continue;
+    if(state.data.roster.some(q=>samePlayer(q,d0))||state.data.ir.some(q=>samePlayer(q,d0))) continue;
+    const r=lgLookup(d0),d=r&&r.pos&&r.pos.length?Object.assign({},d0,{pos:r.pos}):d0;
+    if(r&&r.status&&/^(O|OUT|IR|NA|SUSP)/.test(r.status)) continue;
+    if(!hasSource(d,src)) continue;
+    if(src!=='derived'){
+      const n=nhlVal(d,src);if(!n) continue;
+      const tg=src==='last'?82:teamGamesSince(d.team,NHL.windows[src]);
+      if(n.gp<(posGroup(d)==='G'?0.25:0.4)*tg) continue;
+    }
+    const v=neutralPPG(d,src);if(v>0) vals[posGroup(d)].push(v);
+  }
+  const out={};
+  for(const g of ['F','D','G']){const t=vals[g].sort((x,y)=>y-x).slice(0,10);out[g]=t.length?t.reduce((s,x)=>s+x,0)/t.length:0;out[g+'n']=t.length;}
+  return out;
 }
+/* Fair = the value above replacement each side sends is about equal. A
+   player's value is his points per game minus replacement level for his
+   position, and never below zero (anyone worse than a free agent would just be
+   cut). In a 2-for-1 that credits the side getting one player with a free
+   pickup for the spot it frees. Tolerance is measured against the raw totals. */
+function vor(ppg,rl){return Math.max(0,ppg-rl);}
+function looksFair(vg,vt,gm,tm){   // vg/vt: value above replacement sent/received; gm/tm: raw points per game
+  const hi=Math.max(gm,tm);
+  if(hi<=0) return true;
+  if(Math.max(vg,vt)<0.1*hi) return Math.abs(gm-tm)<=finder.tol*hi;   // both sides at waiver level: compare plain points per game
+  return Math.abs(vg-vt)<=finder.tol*hi;
+}
+/* Trade preferences: ★ prefer, ✕ ignore — any player on any team. */
+function prefKey(p){const d=p.id?null:dirLookup(p),id=p.id||(d&&d.id);return id?'#'+id:nameKey(p.name)+'|'+p.team;}
+function prefOf(p){return state.data.tprefs[prefKey(p)]||'';}
 /* Fair-looking combos per team are ranked by an upper bound on your gain
    (adding players can raise a day's lineup by at most their PPG) and solved
    exactly in that order, stopping once the bound can't beat the 12th best. */
@@ -1677,7 +1716,9 @@ async function runFinder(range,done){
   const teams=state.data.teams.map(t=>t.name).filter(n=>n!==mine&&teamHasPlayers(n)&&(!finder.team||n===finder.team));
   const sizes=finder.size==='all'?Object.keys(SIZES):[finder.size];
   // only players with a real number in both chosen sources (no falling back to another), and no goalies if asked
-  const usable=p=>!(finder.noGoalies&&isGoalie(p))&&hasSource(p,S)&&hasSource(p,Mt);
+  const RL=replacementLevel(Mt),rl=p=>RL[posGroup(p)];
+  const usable=p=>prefOf(p)!=='x'&&!(finder.noGoalies&&isGoalie(p))&&hasSource(p,S)&&hasSource(p,Mt);
+  const myRL=myRaw.map(rl),myPref=myRaw.map(p=>prefOf(p)==='p');
   const myIx=me.roster.map((_,k)=>k).filter(k=>usable(myRaw[k]));
   const skipped=new Set(myRaw.filter(p=>!(finder.noGoalies&&isGoalie(p))&&!(hasSource(p,S)&&hasSource(p,Mt))).map(p=>p.name));
   const out=[];let checked=0,fair=0,solved=0;
@@ -1687,7 +1728,7 @@ async function runFinder(range,done){
     const lbl=$('#fProg');if(lbl)lbl.textContent='Checking '+owner+'… '+(ti+1)+'/'+teams.length;
     await breathe();
     const Sth=spotModel(them,pool),Rth=Math.max(0,Sth.R0-Sth.G1);
-    const thMatch=them.roster.map(p=>neutralPPG(p,Mt));
+    const thMatch=them.roster.map(p=>neutralPPG(p,Mt)),thRL=them.roster.map(rl),thPref=them.roster.map(p=>prefOf(p)==='p');
     const thIx=them.roster.map((_,j)=>j).filter(j=>usable(them.roster[j]));
     them.roster.forEach(p=>{if(!(finder.noGoalies&&isGoalie(p))&&!(hasSource(p,S)&&hasSource(p,Mt)))skipped.add(p.name);});
     const combos=[];
@@ -1695,17 +1736,18 @@ async function runFinder(range,done){
       const [a,b]=SIZES[sz];
       const outsL=a===1?myIx.map(k=>[k]):pairs(myIx),insL=b===1?thIx.map(j=>[j]):pairs(thIx);
       for(const outs of outsL){await breathe();
-        const gm=outs.reduce((s,k)=>s+myMatch[k],0);
+        const gm=outs.reduce((s,k)=>s+myMatch[k],0),vg=outs.reduce((s,k)=>s+vor(myMatch[k],myRL[k]),0),pg=outs.some(k=>myPref[k]);
         for(const ins of insL){
           checked++;
-          const tm=ins.reduce((s,j)=>s+thMatch[j],0);
-          if(!looksFair(gm,tm)) continue;
+          if(finder.onlyPref&&!pg&&!ins.some(j=>thPref[j])) continue;
+          const tm=ins.reduce((s,j)=>s+thMatch[j],0),vt=ins.reduce((s,j)=>s+vor(thMatch[j],thRL[j]),0);
+          if(!looksFair(vg,vt,gm,tm)) continue;
           fair++;
           const ubMe=ins.reduce((s,j)=>s+them.roster[j].proj*them.gp[j].length,0)-lossOf(me,outs)+(a>b?Rme:0);
           if(ubMe<=0.05) continue;
           let key=ubMe;
           if(finder.sort==='both'){const ubTh=outs.reduce((s,k)=>s+me.roster[k].proj*me.gp[k].length,0)-lossOf(them,ins)+(b>a?Rth:0);key=Math.min(ubMe,ubTh);}
-          combos.push({outs,ins,sz,key,gm,tm});
+          combos.push({outs,ins,sz,key,gm,tm,vg,vt});
         }}
     }
     combos.sort((x,y)=>y.key-x.key);
@@ -1717,7 +1759,7 @@ async function runFinder(range,done){
       const my=evalSide(me,c.outs,c.ins.map(j=>them.roster[j]),{fill:'est',spot:Sme});
       if(my.gain<=0.05) continue;
       const th=evalSide(them,c.ins,c.outs.map(k=>me.roster[k]),{fill:'est',spot:Sth});
-      const r={owner,sz:c.sz,give:c.outs.map(k=>myRaw[k]),get:c.ins.map(j=>them.roster[j]),my:my.gain,th:th.gain,gm:c.gm,tm:c.tm,
+      const r={owner,sz:c.sz,give:c.outs.map(k=>myRaw[k]),get:c.ins.map(j=>them.roster[j]),my:my.gain,th:th.gain,gm:c.gm,tm:c.tm,vg:c.vg,vt:c.vt,pref:c.outs.some(k=>myPref[k])||c.ins.some(j=>thPref[j]),
         key:finder.sort==='both'?Math.min(my.gain,th.gain):my.gain};
       found.push(r);found.sort((x,y)=>y.key-x.key);
     }
@@ -1725,7 +1767,7 @@ async function runFinder(range,done){
     finder.progress=(ti+1)/teams.length;
     const bar=$('#fBar');if(bar)bar.style.width=Math.round(finder.progress*100)+'%';
   }
-  finder.busy=false;finder.results={skipped:[...skipped],list:out,checked,fair,solved,teams:teams.length,days:days.length,sizes,match:Mt,solve:S};done();
+  finder.busy=false;finder.results={RL,skipped:[...skipped],list:out,checked,fair,solved,teams:teams.length,days:days.length,sizes,match:Mt,solve:S};done();
 }
 function finderFresh(range){   // results of an all-teams search still cover a single team
   return !!finder.results&&(finder.sig===finderSig(range,finder.team)||(finder.allTeams&&finder.sig===finderSig(range,'')));
@@ -1744,6 +1786,9 @@ function finderHTML(range){
     segBar('fMatch','Points match by',src,finder.match,'data-fmatch','How your league-mates judge value: the points per game each side sends must be close by these numbers.')+
     segBar('fTol','Fair within',FAIR_TOL.map(t=>[t,'±'+Math.round(t*100)+'%']),finder.tol,'data-ftol')+
     segBar('fSolve','Points solve with',src,finder.solve,'data-fsolve','What the trade is really worth: these numbers over '+esc(range.label.toLowerCase())+', with daily lineups re-optimized.')+
+    (()=>{const v=Object.values(state.data.tprefs),np=v.filter(x=>x==='p').length,nx=v.filter(x=>x==='x').length;
+      return '<div class="field"><label>Players</label><div style="display:flex;gap:8px;align-items:center"><div class="muted" style="flex:1;font-size:13px">'+(np||nx?(np?np+' ★ preferred':'')+(np&&nx?' · ':'')+(nx?nx+' ✕ ignored':''):'Mark players to prefer or ignore, on any team')+'</div><button class="btn" id="fPrefs">Edit</button></div></div>'+
+        (np?'<label class="toggle" style="margin:0 0 10px"><input type="checkbox" id="fOnlyP"'+(finder.onlyPref?' checked':'')+'><span><b>Only trades with a ★ player</b></span></label>':'');})()+
     '<label class="toggle" style="margin:0 0 12px"><input type="checkbox" id="fNoG"'+(finder.noGoalies?' checked':'')+'><span><b>Ignore goalies</b><br><small>Skaters only, on both sides.</small></span></label>'+
     '<div class="pair"><div class="field half"><label>Team</label><select id="fTeam"><option value="">All teams</option>'+others.map(t=>'<option'+(t.name===finder.team?' selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select></div>'+
     '<div class="field half"><label>Sort</label><select id="fSort"><option value="me"'+(finder.sort==='me'?' selected':'')+'>Best for me</option><option value="both"'+(finder.sort==='both'?' selected':'')+'>Both gain</option></select></div></div>';
@@ -1757,14 +1802,16 @@ function finderHTML(range){
   }
   const R=finder.results;
   let list=R.list.filter(x=>!finder.team||x.owner===finder.team).map(x=>Object.assign(x,{key:finder.sort==='both'?Math.min(x.my,x.th):x.my}));
-  list.sort((x,y)=>y.key-x.key||y.my-x.my);
+  list.sort((x,y)=>(y.pref?1:0)-(x.pref?1:0)||y.key-x.key||y.my-x.my);   // ★ trades first
   const sg=x=>(x>=0?'+':'')+f1(x);
+  if(finder.onlyPref&&!Object.values(state.data.tprefs).includes('p')) finder.onlyPref=false;
+  h+='<p class="note">Replacement level ('+esc(srcLabel(R.match))+', average of the top 10 free agents): F '+f2(R.RL.F)+' · D '+f2(R.RL.D)+' · G '+f2(R.RL.G)+'. A trade looks fair when the value above replacement each side sends is close; that credits the side getting fewer players with a free pickup.</p>';
   h+='<p class="note">'+list.length+' prospect'+(list.length===1?'':'s')+(finder.team?' with '+esc(finder.team):' across '+R.teams+' teams')+' · '+R.fair.toLocaleString()+' of '+R.checked.toLocaleString()+' trades look fair by '+esc(srcLabel(R.match).toLowerCase())+'. '+(finder.sort==='both'?'Sorted by the smaller of the two gains.':'Sorted by your gain.')+' “Looks” compares the points per game each side sends. Tap one to check it side by side.'+(R.skipped.length?' <span class="muted">Left out '+R.skipped.length+' player'+(R.skipped.length===1?'':'s')+' with no '+esc(srcLabel(R.solve))+(R.match!==R.solve?' or '+esc(srcLabel(R.match)):'')+' number'+(R.skipped.length<=6?': '+R.skipped.map(esc).join(', '):'')+'.</span>':'')+'</p>';
   if(!list.length) return h+'<div class="card"><div class="empty-state">No fair-looking trade of this size helps you over this range. Try a wider “Fair within” or another trade size.</div></div>';
   const names=a=>a.map(p=>esc(p.name)+(p.ir?' <span class="chip st">IR</span>':'')).join(' + ');
   const row=(x,showOwner)=>'<div class="prow" data-prosp="'+R.list.indexOf(x)+'" style="cursor:pointer"><div class="main">'+
-      '<div class="nm">'+names(x.give)+' <span class="muted">→</span> '+names(x.get)+(x.get.length===1?chips(x.get[0].pos)+statusBadge(x.get[0]):'')+(R.sizes.length>1?' <span class="badge">'+SIZE_LABEL[x.sz]+'</span>':'')+'</div>'+
-      '<div class="sub">'+(showOwner?esc(x.owner)+' · ':'')+'you <b class="'+(x.my>0?'g':'')+'">'+sg(x.my)+'</b> · them <b class="'+(x.th>0?'g':x.th<0?'w':'')+'">'+sg(x.th)+'</b> pts · looks '+f2(x.gm)+' for '+f2(x.tm)+'</div></div>'+
+      '<div class="nm">'+(x.pref?'<span class="star">★</span> ':'')+names(x.give)+' <span class="muted">→</span> '+names(x.get)+(x.get.length===1?chips(x.get[0].pos)+statusBadge(x.get[0]):'')+(R.sizes.length>1?' <span class="badge">'+SIZE_LABEL[x.sz]+'</span>':'')+'</div>'+
+      '<div class="sub">'+(showOwner?esc(x.owner)+' · ':'')+'you <b class="'+(x.my>0?'g':'')+'">'+sg(x.my)+'</b> · them <b class="'+(x.th>0?'g':x.th<0?'w':'')+'">'+sg(x.th)+'</b> pts · looks '+f2(x.gm)+' for '+f2(x.tm)+' · above repl. '+f2(x.vg)+' for '+f2(x.vt)+'</div></div>'+
       '<div class="num"><b class="g">'+sg(x.my)+'</b><span>pts</span></div></div>';
   if(!finder.team){   // best few with each team, teams ordered by their best prospect
     const by=new Map();for(const x of list){if(!by.has(x.owner))by.set(x.owner,[]);by.get(x.owner).push(x);}
@@ -1775,10 +1822,29 @@ function finderHTML(range){
   if(list.length>finder.shown) h+='<div class="actions"><button class="btn grow" id="fMore">Show more ('+(list.length-finder.shown)+')</button></div>';
   return h;
 }
+function openTradePrefs(team){
+  const others=state.data.teams.filter(t=>teamHasPlayers(t.name)),mine=myTeamName();
+  if(!others.some(t=>t.name===team)) team=mine||(others[0]&&others[0].name);
+  const list=team===mine?myTradeRaw():leagueRoster(team);
+  const P=state.data.tprefs;
+  let h='<h3>Trade preferences</h3><p class="note" style="margin-top:-6px">★ Prefer: trades with these players are listed first (and you can show only those). ✕ Ignore: never offered or asked for. Your own team too.</p>'+
+    '<div class="field"><select id="tpTeam">'+others.map(t=>'<option'+(t.name===team?' selected':'')+' value="'+esc(t.name)+'">'+esc(t.name)+(t.name===mine?' (you)':'')+'</option>').join('')+'</select></div><div class="card">'+
+    list.map((p,k)=>{const v=prefOf(p);return '<div class="prow"><div class="main"><div class="nm">'+esc(p.name)+chips(p.pos)+(p.ir?' <span class="chip st">IR</span>':'')+'</div><div class="sub">'+esc(p.team)+'</div></div>'+
+      '<div class="seg tri" style="margin:0"><button data-tp="'+k+'" data-v="p" class="'+(v==='p'?'on':'')+'" aria-label="Prefer">★</button><button data-tp="'+k+'" data-v="" class="'+(v===''?'on':'')+'" aria-label="Neutral">–</button><button data-tp="'+k+'" data-v="x" class="'+(v==='x'?'on':'')+'" aria-label="Ignore">✕</button></div></div>';}).join('')+
+    '</div><div class="actions"><button class="btn" id="tpClear">Clear this team</button><button class="btn primary grow" id="tpDone">Done</button></div>';
+  openSheet(h);
+  $('#tpTeam').onchange=e=>openTradePrefs(e.target.value);
+  document.querySelectorAll('[data-tp]').forEach(b=>b.onclick=()=>{const p=list[+b.dataset.tp],k=prefKey(p);if(b.dataset.v)P[k]=b.dataset.v;else delete P[k];save();
+    b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));});
+  $('#tpClear').onclick=()=>{list.forEach(p=>delete P[prefKey(p)]);save();openTradePrefs(team);};
+  $('#tpDone').onclick=()=>{closeSheet();renderTrades();};
+}
 function wireFinder(range){
   if(!$('#fTeam')) return;
   const set=(k,v)=>{if(finder.busy){toast('Wait for the search to finish');return;}finder[k]=v;finder.shown=25;renderTrades();};
   $('#fTeam').onchange=e=>{if(finder.busy){e.target.value=finder.team;return;}finder.team=e.target.value;finder.shown=25;renderTrades();};
+  $('#fPrefs').onclick=()=>openTradePrefs(finder.team||myTeamName());
+  if($('#fOnlyP')) $('#fOnlyP').onchange=e=>{if(finder.busy){e.target.checked=finder.onlyPref;return;}finder.onlyPref=e.target.checked;renderTrades();};
   $('#fNoG').onchange=e=>{if(finder.busy){e.target.checked=finder.noGoalies;return;}finder.noGoalies=e.target.checked;renderTrades();};
   $('#fSort').onchange=e=>{finder.sort=e.target.value;finder.shown=25;renderTrades();};   // re-sorts; no new search needed
   document.querySelectorAll('[data-fsize]').forEach(b=>b.onclick=()=>set('size',b.dataset.fsize));
@@ -1849,6 +1915,8 @@ function tradeResultHTML(range,slots,myRaw,theirs,mineN){
   const A=evalSide(me,outs,ins.map(j=>theirs[j]),{exactDrop:true,fill:needA?fill:'none',spot:SA});
   const B=evalSide(them,ins,outs.map(k=>meR[k]),{exactDrop:true,fill:needB?fill:'none',spot:SB});
   const gm=outs.reduce((s,k)=>s+neutralMine(myRaw[k],finder.match),0),tm=ins.reduce((s,j)=>s+neutralPPG(theirs[j],finder.match),0);
+  const RLc=replacementLevel(finder.match);
+  const vg=outs.reduce((s,k)=>s+vor(neutralMine(myRaw[k],finder.match),RLc[posGroup(myRaw[k])]),0),vt=ins.reduce((s,j)=>s+vor(neutralPPG(theirs[j],finder.match),RLc[posGroup(theirs[j])]),0);
   // a side that fills a freed spot is compared with the swap it could make without the trade
   const baseOf=(M,E,S)=>E.fill&&S&&S.swap?S.alt:M.roster;
   const sides=[{name:mineN||'You',label:'You',M:me,E:A,gave:outs.map(k=>meR[k]),got:A.after.filter(p=>ins.some(j=>p.name===theirs[j].name&&p.team===theirs[j].team))},
@@ -1869,9 +1937,9 @@ function tradeResultHTML(range,slots,myRaw,theirs,mineN){
     else if(e.after.length<s.M.roster.length) c+='<div class="tlist"><span class="tlbl">Roster</span><div class="muted">1 open spot</div></div>';
     return c+'</div>';
   };
-  const hi=Math.max(gm,tm),diff=hi>0?(tm-gm)/hi:0,fairNow=Math.abs(diff)<=finder.tol;
+  const hi=Math.max(gm,tm),low=Math.max(vg,vt)<0.1*hi,diff=hi>0?(low?tm-gm:vt-vg)/hi:0,fairNow=Math.abs(diff)<=finder.tol;
   let h='<div class="card pad tlooks"><div><span class="tlbl">How it looks · '+esc(srcLabel(finder.match))+' pts/game</span>'+
-    '<b>'+f2(gm)+'</b> you send · <b>'+f2(tm)+'</b> you get</div><span class="badge'+(fairNow?' ok':' warn')+'">'+(fairNow?'Looks fair':(diff>0?'Favours you':'Favours them'))+(Math.round(Math.abs(diff)*100)?' · '+Math.round(Math.abs(diff)*100)+'% to '+(diff>0?'you':'them'):'')+'</span></div>'+
+    '<b>'+f2(gm)+'</b> you send · <b>'+f2(tm)+'</b> you get<br><span class="muted" style="font-size:12.5px">Above replacement: '+f2(vg)+' sent · '+f2(vt)+' received</span></div><span class="badge'+(fairNow?' ok':' warn')+'">'+(fairNow?'Looks fair':(diff>0?'Favours you':'Favours them'))+(Math.round(Math.abs(diff)*100)?' · '+Math.round(Math.abs(diff)*100)+'% to '+(diff>0?'you':'them'):'')+'</span></div>'+
     '<div class="card tcols" style="margin-top:12px">'+sides.map(col).join('')+'</div>';
   h+='<p class="note">Points use '+esc(srcLabel(finder.solve).toLowerCase())+' numbers for every player, over the days in range with daily lineups re-optimized.'+((A.fill||B.fill)?' *The team that frees a spot picks up its best free agent. It could already cut its least useful player for a free agent without trading, so its “before” includes that swap; the trade only gets credit for what the extra spot adds.':'')+' Players on IR are assumed to be back in the lineup right away. Starts are games each player starts in the optimized lineup over '+esc(range.label.toLowerCase())+'.</p>';
   // by week, both sides

@@ -160,7 +160,7 @@ nav.tabs button.on{color:var(--accent)}
 .twk .g{color:var(--good)}.twk .w{color:var(--bad)}
 .twk.thead{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:6px 14px}
 
-#srcSeg{margin-top:6px}#srcSeg button{padding:5px 4px;font-size:12.5px}
+#srcSeg{margin-top:6px}#srcSeg button{padding:5px 2px;font-size:12px;white-space:nowrap}
 .scgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:12px}
 .sc{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
 .sc span{flex:1;min-width:0;line-height:1.2}.sc b{display:block;color:var(--ink);font-size:13px}
@@ -546,9 +546,11 @@ const PPG_SOURCES=[
   {key:'derived',label:'Projected',short:'proj',perStart:false},
   {key:'season',label:'Season',short:'Szn',perStart:true},
   {key:'l30',label:'Last 30',short:'L30',perStart:true},
-  {key:'l14',label:'Last 14',short:'L14',perStart:true}
+  {key:'l14',label:'Last 14',short:'L14',perStart:true},
+  {key:'last',label:'Last season',short:'LY',perStart:true}
 ];
-const FALLBACK={derived:['derived','season','l30','l14'],season:['season','l30','derived'],l30:['l30','season','l14','derived'],l14:['l14','l30','season','derived']};
+const FALLBACK={derived:['derived','season','l30','l14','last'],season:['season','l30','derived','last'],l30:['l30','season','l14','derived','last'],l14:['l14','l30','season','derived','last'],last:['last','derived','season']};
+const NHL_WINDOWS=['season','l30','l14','last'];
 /* League scoring, mirroring Yahoo's categories. Points are worked out from the
    NHL totals in nhl-stats.json, so changing a weight needs no new download. */
 const SCORING=[
@@ -599,13 +601,13 @@ function nhlVal(p,w){
   const x=nhlRow(p); if(!x) return null;
   const ck=(p.id||p.name+'|'+p.team)+'|'+w;
   if(NHL_MEMO.has(ck)) return NHL_MEMO.get(ck);
-  const S=state.data.settings.scoring,arr=x.r[3+['season','l30','l14'].indexOf(w)];
+  const S=state.data.settings.scoring,arr=x.r[3+NHL_WINDOWS.indexOf(w)];
   let out=null;
   if(arr){
     if(x.g){
       const [gp,gs,W,L,otl,ga,sv,sho]=arr;
       if(gs>0){const pts=gs*S.GS+W*S.W+L*S.L+otl*S.OTL+ga*S.GA+sv*S.SV+sho*S.SHO;
-        const tg=teamGamesSince(x.r[1]||p.team,NHL.windows[w]);
+        const tg=w==='last'?82:teamGamesSince(x.r[1]||p.team,NHL.windows[w]);   // last season: a full 82-game schedule
         out={val:pts/gs,start:tg?Math.min(100,Math.round(100*gs/tg)):null,gp:gs};}
     } else {
       const [gp,g,a,pm,pim,ppg,ppp,shg,shp,gwg,sog,hit,blk]=arr;
@@ -2090,7 +2092,7 @@ function renderSettings(){
       '<small>If a player has no value for this source, the next available one is used: '+
       PPG_SOURCES.map(s=>s.label+' → '+FALLBACK[s.key].slice(1).map(k=>PPG_SOURCES.find(x=>x.key===k).label).join(' → ')).join('; ')+'.</small></div>'+
     '<label class="toggle"><input type="checkbox" id="sManual"'+(st.useManual?' checked':'')+'><span><b>Manual overrides when entered</b><br><small>Turn off to compare against the selected source without deleting your manual values.</small></span></label>'+
-    '<p class="note" style="margin:10px 0 0">Season, Last 30 and Last 14 are fantasy points per game from NHL stats with your scoring. For goalies they’re per start, multiplied by his share of his team’s starts over the same days (a start % you type in wins). Projected already includes starts.</p></div>'+
+    '<p class="note" style="margin:10px 0 0">Season, Last 30, Last 14 and Last season are fantasy points per game from NHL stats with your scoring. For goalies they’re per start, multiplied by his share of his team’s starts over the same days (out of 82 for last season) (a start % you type in wins). Projected already includes starts.</p></div>'+
 
     '<div class="sect"><h2>Save &amp; restore</h2></div>'+
     '<p class="note">Everything lives only in this browser. Download a save file to back it up or move it to another device (Files, OneDrive, email…), then Import it there.</p>'+

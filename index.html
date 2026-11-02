@@ -132,6 +132,9 @@ nav.tabs button.on{color:var(--accent)}
 .preview{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
 .preview .row.bad{background:var(--warn-soft);color:var(--warn)}
 .muted{color:var(--muted)}
+.num.stack{display:flex;flex-direction:column;align-items:flex-end;gap:0}.num.stack .btn{padding:6px 10px;font-size:13px}
+.iconbtn.gear{display:flex;align-items:center;justify-content:center;color:var(--muted)}.iconbtn.gear svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.iconbtn.gear.on{color:var(--accent);border-color:var(--accent)}
 .seg.tri{flex:none;width:118px}.seg.tri button{padding:6px 0;font-size:14px}
 .seg.tri button[data-v="p"].on{color:#b8860b}.seg.tri button[data-v="x"].on{color:var(--bad)}
 .star{color:#d4a017}
@@ -250,6 +253,7 @@ a{color:var(--accent)}
       <button class="iconbtn" id="prevWk" aria-label="Previous week">‹</button>
       <h1 id="wkTitle">Week</h1>
       <button class="iconbtn" id="nextWk" aria-label="Next week">›</button>
+      <button class="iconbtn gear" id="gearBtn" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
     </div>
     <div class="seg" id="rangeSeg">
       <button data-r="rest">Rest of week</button>
@@ -270,6 +274,7 @@ a{color:var(--accent)}
   <section id="tab-stream" class="hidden"></section>
   <section id="tab-trades" class="hidden"></section>
   <section id="tab-league" class="hidden"></section>
+  <section id="tab-players" class="hidden"></section>
   <section id="tab-settings" class="hidden"></section>
 </main>
 
@@ -279,7 +284,7 @@ a{color:var(--accent)}
   <button data-tab="stream"><svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg>Streamers</button>
   <button data-tab="trades"><svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>Trades</button>
   <button data-tab="league"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4v3h-4z"/></svg>League</button>
-  <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+  <button data-tab="players"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg>Players</button>
 </div></nav>
 
 <div class="sheet-bg" id="sheetBg"><div class="sheet" id="sheet"></div></div>
@@ -897,12 +902,13 @@ function renderHeader(){
   });
   if(span) $('#wkTitle').innerHTML='Roster<small>'+(state.rosterRange==='playoffs'?'Playoffs · '+playoffLabel():'Rest of the regular season · '+span.days.length+' days')+'</small>';
   if(season){const pw=playoffWeeks();$('#wkTitle').innerHTML='Season<small>'+(lg?esc(lg)+' · ':'')+'Every fantasy week'+(pw.length?' · playoffs '+pw.join(', '):'')+'</small>';}
-  if(state.tab==='league'&&league.view!=='week'){const R=leagueRange();$('#wkTitle').innerHTML='League<small>'+(league.view==='playoffs'?(playoffWeeks().length?'Playoffs · '+playoffLabel():'Playoffs not set up'):'Rest of the regular season'+(R&&R.days.length?' · '+R.days.length+' days':''))+'</small>';}
+  if(state.tab==='players') $('#wkTitle').innerHTML='Players · Week '+state.week+'<small>'+md(dateOf(days[0]))+' – '+md(dateOf(days[days.length-1]))+' · '+(NHL?'NHL stats through '+esc(NHL.asOf):'no NHL stats loaded')+'</small>';
+  else if(state.tab==='league'&&league.view!=='week'){const R=leagueRange();$('#wkTitle').innerHTML='League<small>'+(league.view==='playoffs'?(playoffWeeks().length?'Playoffs · '+playoffLabel():'Playoffs not set up'):'Rest of the regular season'+(R&&R.days.length?' · '+R.days.length+' days':''))+'</small>';}
   const set=state.tab==='settings'||state.tab==='trades'||season||!!span||(state.tab==='league'&&league.view!=='week');
   if(state.tab==='settings') $('#wkTitle').innerHTML='Settings<small>Saved in this browser only</small>';
   if(state.tab==='trades') $('#wkTitle').innerHTML='Trades<small>Both teams as-is vs. with the trade, from today on</small>';
   $('#prevWk').style.visibility=$('#nextWk').style.visibility=set?'hidden':'';
-  $('#rangeSeg').classList.toggle('hidden',state.tab==='settings'||state.tab==='trades'||state.tab==='league');
+  $('#rangeSeg').classList.toggle('hidden',state.tab==='settings'||state.tab==='trades'||state.tab==='league'||state.tab==='players');
   // League: full week / season / playoffs
   const lgs=$('#lgSeg');
   lgs.innerHTML=[['week','Full week'],['season','Season'],['playoffs','Playoffs']].map(([k,l])=>'<button data-lv="'+k+'" class="'+(league.view===k?'on':'')+'">'+l+'</button>').join('');
@@ -911,7 +917,8 @@ function renderHeader(){
   // points-per-game source, same setting as Settings → Points per game
   const ss=$('#srcSeg'),src=state.data.settings.ppgSource;
   ss.innerHTML=PPG_SOURCES.map(s=>'<button data-src="'+s.key+'" class="'+(s.key===src?'on':'')+'" aria-pressed="'+(s.key===src)+'">'+s.label+'</button>').join('');
-  ss.classList.toggle('hidden',state.tab==='settings'||state.tab==='trades');   // Trades has its own match/solve choices
+  ss.classList.toggle('hidden',state.tab==='settings'||state.tab==='trades'||state.tab==='players');
+  $('#gearBtn').classList.toggle('on',state.tab==='settings');   // Trades has its own match/solve choices
   // Trades: regular season / playoffs, kept in the header so it stays visible
   const tr=$('#trSeg'),rs=state.tab==='trades'?tradeRanges():[];
   if(rs.length&&!rs.some(r=>r.key===trade.range)) trade.range=rs[0].key;
@@ -1048,7 +1055,7 @@ function renderRoster(){
   const lim=rosterLimit(),over=roster.length-lim;
   let h=sectHead('roster','Roster · '+roster.length+'/'+lim+(over>0?' <span class="w">· '+over+' over</span>':over<0?' · '+(-over)+' open':' · full'),true);
   const mine=myTeamName(),mineCount=mine?state.data.lg.players.filter(r=>r.owner===mine).length:0;
-  if(mine) h+='<div class="card pad" style="display:flex;align-items:center;gap:10px"><div class="grow" style="flex:1;min-width:0"><b>'+esc(mine)+'</b><br><span class="muted" style="font-size:13px">'+(mineCount?mineCount+' players in league data'+(state.data.lg.asOf?' · as of '+esc(state.data.lg.asOf):''):'Not in league data')+' · <a href="#" id="pickTeam">switch team</a></span></div>'+(mineCount?'<button class="btn" id="loadMine">Reload</button>':'')+'</div>';
+  if(mine) h+='<div class="card pad" style="display:flex;align-items:center;gap:10px"><div class="grow" style="flex:1;min-width:0"><b>'+esc(mine)+'</b><br><span class="muted" style="font-size:13px">'+(mineCount?mineCount+' players in league data'+(state.data.lg.asOf?' · as of '+esc(state.data.lg.asOf):''):'Not in league data')+' · <a href="#" id="pickTeam">switch team</a></span></div>'+(mineCount?'<button class="btn" id="loadMine">Reload</button>':'')+'<button class="btn" id="rYahoo">Paste</button></div>';
   if(roster.length) h+='<p class="note">Swipe a player left to move him. Everyone starts locked; unlock players you’d be willing to drop and the app tests those drops. Points shown are from games each player starts in the optimized lineup; red marks the 3 lowest (more if tied).</p><div class="wklegend"><span class="st"></span>Starts<span class="bn"></span>Benched<span class="off"></span>No game<span class="muted">· watchlist and IR: if added</span></div>';
   h+='<div class="card">';
   if(!roster.length) h+='<div class="empty-state">No players yet. Paste rows from Excel or add them one at a time.</div>';
@@ -1101,6 +1108,7 @@ function renderRoster(){
   root.querySelectorAll('[data-paste]').forEach(el=>el.onclick=()=>openPaste(el.dataset.paste));
   root.querySelectorAll('.swipe').forEach(wireSwipe);
   if($('#loadMine')) $('#loadMine').onclick=openLoadMine;
+  if($('#rYahoo')) $('#rYahoo').onclick=openYahooPaste;
   if($('#pickTeam')) $('#pickTeam').onclick=e=>{e.preventDefault();openTeamPicker();};
 }
 
@@ -1245,135 +1253,70 @@ function freeAgentPool(){
 }
 function planDays(){const ti=todayIndex();return weekDays(state.week).filter(i=>i>=ti);}
 function addsLeft(){const st=state.data.settings,used=state.data.adds[state.week]||0;return st.maxAdds?Math.max(0,st.maxAdds-used):null;}
-function buildStreamPlan(){
-  const slots=slotList(),D=planDays(),n=D.length,ti=todayIndex();
-  const base=effList(state.data.roster),FA=freeAgentPool();
-  const t0=(!state.data.settings.sameDay&&D[0]===ti)?1:0;              // first day a pickup can play
-  let left=addsLeft(); if(left===null) left=n;                          // no limit: at most one add a day per spot
-  const gone=new Map(),held=[],usedFA=new Set(),spots=[];
-  let openLeft=Math.max(0,openSpots());
-  const rosterOn=i=>base.filter((p,k)=>!gone.has(k)||i<gone.get(k)).concat(held.filter(h=>h.days.has(i)).map(h=>h.p));
-  const dt=ps=>{let t=0;solveDay(ps,slots).started.forEach(j=>t+=ps[j].proj||0);return t;};
-  const evalSpot=(k,mask)=>{   // k = roster index of the unlocked player, or -1 for an open spot; mask: FA index → last day index he may be held (-1 = never)
-    const u=k>=0?base[k]:null,K=left;
-    const valU=new Float64Array(n),vals=[];
-    const dayPs=D.map(i=>rosterOn(i).filter(p=>p!==u&&plays(p.team,i)));
-    const bt=dayPs.map(dt);
-    D.forEach((i,t)=>{if(u&&plays(u.team,i))valU[t]=dt(dayPs[t].concat([u]))-bt[t];});
-    const cand=[];
-    FA.forEach((f,j)=>{if(usedFA.has(j))return;const v=new Float64Array(n);let s=0;
-      const lim=mask&&mask.has(j)?mask.get(j):n;if(lim<0)return;
-      D.forEach((i,t)=>{if(t>=t0&&t<=lim&&plays(f.team,i)){v[t]=dt(dayPs[t].concat([f]))-bt[t];s+=v[t];}else if(t>lim)v[t]=-1e6;});
-      if(s>0.01){cand.push(j);vals.push(v);}});
-    const J=cand.length,NEG=-1e9;
-    // f[k][j]: best value with exactly k adds and FA j holding the spot; fu: still the original holder
-    let fu=0,f=[];for(let q=0;q<=K;q++)f.push(new Float64Array(J).fill(NEG));
-    const back=[];   // back[t][q][j] = -1 continue, -2 from original, else previous FA index
-    for(let t=0;t<n;t++){
-      const nf=[],bk=[];
-      for(let q=0;q<=K;q++){
-        // best and second-best previous holder at q-1 (to avoid "switching" to the same player)
-        let b1=NEG,b1j=-3,b2=NEG,b2j=-3;
-        if(q>=1){
-          if(q-1===0&&fu>b1){b1=fu;b1j=-2;}
-          const P=f[q-1];for(let j=0;j<J;j++){const v=P[j];if(v>b1){b2=b1;b2j=b1j;b1=v;b1j=j;}else if(v>b2){b2=v;b2j=j;}}
-        }
-        const row=new Float64Array(J),br=new Int32Array(J);
-        for(let j=0;j<J;j++){
-          let best=t>0?f[q][j]:NEG,from=-1;
-          if(q>=1&&t>=t0){const s=b1j===j?b2:b1,sj=b1j===j?b2j:b1j;if(s>best){best=s;from=sj;}}
-          row[j]=best<=NEG/2?NEG:best+vals[j][t];br[j]=from;
-        }
-        nf.push(row);bk.push(br);
+/* ===== Top streams =====
+   For the days left in the week: what each free agent would add to your
+   optimized lineup. With an open roster spot he goes straight in; with a full
+   roster he replaces whichever unlocked player costs least to drop. The best
+   10 skaters and 10 goalies are listed, each with his own option to compare. */
+function streamDays(){
+  const D=planDays(),ti=todayIndex();
+  return !state.data.settings.sameDay&&D[0]===ti?D.slice(1):D;
+}
+function topStreams(){
+  const days=streamDays(),slots=slotList(),roster=effList(state.data.roster);
+  if(!days.length) return null;
+  const base=rangeTotal(roster,days,slots),sBase=startsTotal(roster,days,slots);
+  const open=openSpots()>0,drops=open?[]:dropOptions(),full=!open&&!drops.length;
+  const pool=freeAgentPool().map(f=>({f,gp:days.filter(i=>plays(f.team,i)).length})).filter(x=>x.gp>0);
+  const out={sk:[],g:[]};
+  for(const grp of ['sk','g']){
+    const cand=pool.filter(x=>(grp==='g')===isGoalie(x.f)).sort((a,b)=>b.f.proj*b.gp-a.f.proj*a.gp).slice(0,60);
+    const rows=[];
+    for(const {f,gp} of cand){
+      let best;
+      if(open||full){const after=roster.concat([f]);best={gain:rangeTotal(after,days,slots)-base,st:startsTotal(after,days,slots)-sBase,drop:null,after};}
+      else for(const d of drops){
+        const after=roster.filter((_,x)=>x!==d.k).concat([f]);
+        const g=rangeTotal(after,days,slots)-base;
+        if(!best||g>best.gain) best={gain:g,st:startsTotal(after,days,slots)-sBase,drop:d.name,after};
       }
-      f=nf;back.push(bk);fu+=valU[t];
+      if(best.gain>0.05) rows.push(Object.assign({f,gp},best));
     }
-    let best=fu,bq=0,bj=-2;
-    for(let q=1;q<=K;q++)for(let j=0;j<J;j++)if(f[q][j]>best+1e-9){best=f[q][j];bq=q;bj=j;}
-    const keep=valU.reduce((x,y)=>x+y,0);
-    if(bj===-2) return {gain:0};
-    // walk back to segments
-    const holder=new Array(n);let q=bq,j=bj;
-    for(let t=n-1;t>=0;t--){holder[t]=j;const fr=back[t][q][j];if(fr===-1)continue;q--;j=fr;if(j===-2){for(let s=t-1;s>=0;s--)holder[s]=-2;break;}}
-    const segs=[];for(let t=0;t<n;t++){const h=holder[t]===undefined?-2:holder[t];if(!segs.length||segs[segs.length-1].h!==h)segs.push({h,from:t,to:t});else segs[segs.length-1].to=t;}
-    return {gain:best-keep,k,u,segs:segs.map(s=>({fa:s.h>=0?cand[s.h]:-1,from:s.from,to:s.to})),adds:bq};
-  };
-  /* A player you drop goes to waivers, so a chain can't re-add him later in the
-     week. If the best chain does (A → B → A), try both fixes, keeping A only
-     for his first stretch or not using him at all, and take the better. */
-  const planSpot=(k,mask,depth)=>{
-    const r=evalSpot(k,mask);if(!r.segs||depth>=6)return r;
-    const seen=new Map();let rep=null;
-    for(const s of r.segs){if(s.fa<0)continue;if(seen.has(s.fa)){rep={fa:s.fa,first:seen.get(s.fa)};break;}seen.set(s.fa,s);}
-    if(!rep)return r;
-    const m1=new Map(mask||[]);m1.set(rep.fa,rep.first.to);
-    const m2=new Map(mask||[]);m2.set(rep.fa,-1);
-    const a1=planSpot(k,m1,depth+1),a2=planSpot(k,m2,depth+1);
-    return (a1.gain||0)>=(a2.gain||0)?a1:a2;
-  };
-  while(left>0){
-    const tries=[];
-    if(openLeft>0) tries.push(planSpot(-1,null,0));
-    base.forEach((p,k)=>{if(state.data.roster[k].unlocked&&!gone.has(k))tries.push(planSpot(k,null,0));});
-    const best=tries.filter(x=>x.gain>0.05).sort((x,y)=>y.gain-x.gain)[0];
-    if(!best) break;
-    if(best.k>=0){const first=best.segs.find(s=>s.fa>=0);gone.set(best.k,D[first.from]);} else openLeft--;
-    const picks=best.segs.filter(s=>s.fa>=0).map(s=>{const p=FA[s.fa];usedFA.add(s.fa);const h={p,days:new Set(D.slice(s.from,s.to+1))};held.push(h);return {p,from:D[s.from],to:D[s.to],h};});
-    spots.push({drop:best.u?state.data.roster[best.k]:null,dropK:best.k,dropAt:best.k>=0?gone.get(best.k):null,picks,gain:best.gain,adds:best.adds});
-    left-=best.adds;
+    out[grp]=rows.sort((a,b)=>b.gain-a.gain).slice(0,10);
   }
-  // final lineups to colour the strips and count starts
-  const startedOn=new Map();let ptsB=0,ptsA=0,stB=0,stA=0;
-  for(const i of D){
-    const psA=rosterOn(i).filter(p=>plays(p.team,i)),sa=solveDay(psA,slots).started,set=new Set();sa.forEach(j=>{set.add(psA[j]);ptsA+=psA[j].proj||0;});startedOn.set(i,set);stA+=sa.size;
-    const psB=base.filter(p=>plays(p.team,i)),sb=solveDay(psB,slots).started;sb.forEach(j=>ptsB+=psB[j].proj||0);stB+=sb.size;
-  }
-  return {D,spots,gain:ptsA-ptsB,starts:stA-stB,startedOn,fa:FA.length,t0,base};
+  return {days,open,full,nDrops:drops.length,out};
 }
-function planStrip(P,p,heldDays){   // whole week; days he isn't on your roster are dashed
-  const days=weekDays(state.week);
-  return weekStrip(days.map(i=>{if(!heldDays.has(i))return plays(p.team,i)?'na':'off';if(!plays(p.team,i))return 'off';return P.startedOn.get(i)&&P.startedOn.get(i).has(p)?'st':'bn';}),days);
+function stripAfter(after,f,slots){   // his week: starts / benched on the days he'd be yours, no game, or already played
+  const days=weekDays(state.week),sd=new Set(streamDays()),k=after.indexOf(f);
+  return weekStrip(days.map(i=>{
+    if(!plays(f.team,i)) return 'off';
+    if(!sd.has(i)) return 'na';
+    const idx=[];after.forEach((p,j)=>{if(plays(p.team,i))idx.push(j);});
+    const {started}=solveDay(idx.map(j=>after[j]),slots);
+    return [...started].some(j=>idx[j]===k)?'st':'bn';
+  }),days);
 }
-const PLAN={sig:'',P:null};
-function streamPlanHTML(){
-  const D=planDays(),st=state.data.settings,used=state.data.adds[state.week]||0,left=addsLeft();
-  let h='<div class="sect"><h2>Streaming plan · week '+state.week+'</h2></div>';
-  const adds='<div class="stepper" style="border:0;padding:0 0 10px"><div class="lbl"><b>Adds used this week</b><span>'+(st.maxAdds?(left+' of '+st.maxAdds+' left'):'No weekly limit (Settings → Pickups)')+'</span></div>'+
-    '<div class="ctl"><button data-udec aria-label="Fewer adds used">−</button><output>'+used+'</output><button data-uinc aria-label="More adds used">+</button></div></div>';
-  if(!D.length) return h+'<div class="card pad">'+adds+'<div class="empty-state" style="padding:6px 0">This week is over.</div></div>';
-  const sig=JSON.stringify([state.week,todayIndex(),state.data.roster,state.data.ir,state.data.watch,st,state.data.adds[state.week]||0,state.data.stash,myTeamName(),state.data.lg.asOf,state.data.lg.players.length,PPG_SIGNATURE()]);
-  if(PLAN.sig!==sig){PLAN.P=buildStreamPlan();PLAN.sig=sig;}
-  const P=PLAN.P,sg=x=>(x>=0?'+':'')+f1(x),dr=(a,b)=>a===b?DOW[dateOf(a).getDay()]:DOW[dateOf(a).getDay()]+'–'+DOW[dateOf(b).getDay()];
-  const nAdds=P.spots.reduce((s,x)=>s+x.adds,0);
-  h+='<div class="card pad">'+adds;
-  if(left===0) h+='<div class="empty-state" style="padding:6px 0">No adds left this week.</div></div>';
-  else if(!P.spots.length) h+='<div class="empty-state" style="padding:6px 0">'+(pickupMode()==='full'?'Your roster is full and nobody is unlocked. Unlock players you’d drop (Roster tab) to plan streams.':'No free agent improves your lineup over the rest of the week.')+'</div></div>';
-  else {
-    h+='<div class="stats" style="grid-template-columns:repeat(3,1fr);margin:0 -14px -14px;border-top:1px solid var(--line)">'+
-      '<div class="stat big"><b class="g">'+sg(P.gain)+'</b><span>Points</span></div><div class="stat"><b>'+(P.starts>=0?'+':'')+P.starts+'</b><span>Starts</span></div><div class="stat"><b>'+nAdds+'</b><span>Add'+(nAdds===1?'':'s')+'</span></div></div></div>';
-    P.spots.forEach((s,si)=>{
-      h+='<div class="sect"><h2>Spot '+(si+1)+' · '+(s.drop?'drop '+esc(s.drop.name):'open spot')+'</h2><span class="muted" style="font-size:13px;font-weight:700">'+sg(s.gain)+' pts</span></div><div class="card">';
-      if(s.drop){const keepDays=new Set(P.D.filter(i=>i<s.dropAt));const bp=P.base[s.dropK];
-        h+='<div class="prow"><div class="main"><div class="nm">'+esc(s.drop.name)+chips(s.drop.pos)+'</div><div class="sub">'+(keepDays.size?'Keep through '+DOW[dateOf(s.dropAt-1).getDay()]+', then drop':'Drop now')+' · '+esc(s.drop.team)+planStrip(P,bp,keepDays)+'</div></div><span class="badge">Drop</span></div>';}
-      s.picks.forEach(x=>{
-        const ix=state.data.watch.findIndex(q=>samePlayer(q,x.p));
-        h+='<div class="prow"><div class="main"><div class="nm">'+esc(x.p.name)+chips(x.p.pos)+(x.p.status?'<span class="chip st">'+esc(x.p.status)+'</span>':'')+'</div>'+
-          '<div class="sub"><b>Add '+DOW[dateOf(x.from).getDay()]+'</b>'+(x.to<P.D[P.D.length-1]?', drop after '+DOW[dateOf(x.to).getDay()]:', keep')+' · '+esc(x.p.team)+' · '+f2(x.p.proj)+'/gm'+planStrip(P,x.p,x.h.days)+'</div></div>'+
-          (ix>=0?'<span class="badge">Watchlist</span>':'<button class="btn" data-pwatch="'+esc(JSON.stringify({name:x.p.name,team:x.p.team,pos:x.p.pos,id:x.p.id}))+'">+ Watch</button>')+'</div>';
-      });
-      h+='</div>';
-    });
-    h+='<p class="note">Chains free agents through each spot: hold a player for his games, then swap him for the next one. '+P.fa+' free agents considered'+(state.data.lg.players.length?' (unowned in league data)':' — import league data to skip players who are already owned')+'. Only unlocked players are dropped. Dashed boxes are games while he isn’t on your roster.'+(P.t0?' Pickups start tomorrow.':'')+'</p>';
-  }
+function topStreamsHTML(){
+  const T=topStreams(),slots=slotList();
+  let h='<div class="sect"><h2>Top streams · rest of week '+state.week+'</h2></div>';
+  if(!T) return h+'<div class="card"><div class="empty-state">No days left to stream this week.</div></div>';
+  const first=T.days[0],last=T.days[T.days.length-1];
+  h+='<p class="note">Points each free agent would add to your optimized lineup from '+md(dateOf(first))+' to '+md(dateOf(last))+' ('+T.days.length+' day'+(T.days.length===1?'':'s')+'). '+
+    (T.open?'You have an open roster spot, so he goes straight in.':T.full?'<span class="w">Your roster is full and nobody is unlocked</span>, so this is his value if added; unlock players on the Roster tab to see the drop each needs.':'Your roster is full: each is shown swapped for the unlocked player whose drop costs least.')+
+    ' Dashed days are already played or before he could join.</p>';
+  const list=rows=>rows.length?'<div class="card">'+rows.map(r=>{
+    const f=r.f,ix=state.data.watch.findIndex(q=>samePlayer(q,f));
+    return '<div class="prow"><div class="main"><div class="nm">'+esc(f.name)+chips(f.pos)+(f.status?'<span class="chip st">'+esc(f.status)+'</span>':'')+'</div>'+
+      '<div class="sub">'+esc(f.team)+' · '+r.gp+' GP left · '+f2(f.proj)+'/gm'+(r.drop?' · drop '+esc(r.drop):'')+(r.st?' · '+(r.st>0?'+':'')+r.st+' starts':'')+stripAfter(r.after,f,slots)+'</div></div>'+
+      '<div class="num stack"><b class="g">+'+f1(r.gain)+'</b><span>pts</span>'+(ix>=0?'<span class="badge" style="margin-top:4px">Watchlist</span>':'<button class="btn" style="margin-top:4px" data-tsw="'+esc(JSON.stringify({name:f.name,team:f.team,pos:f.pos,id:f.id}))+'">+ Watch</button>')+'</div></div>';
+  }).join('')+'</div>':'<div class="card"><div class="empty-state">No free agent adds points over these days.</div></div>';
+  h+='<div class="sect"><h2>Skaters</h2></div>'+list(T.out.sk)+'<div class="sect"><h2>Goalies</h2></div>'+list(T.out.g);
   return h;
 }
-function wireStreamPlan(root){
-  const W=state.week,A=state.data.adds;
-  const u=root.querySelector('[data-udec]'),v=root.querySelector('[data-uinc]');
-  if(u)u.onclick=()=>{A[W]=Math.max(0,(A[W]||0)-1);if(!A[W])delete A[W];save();renderStreamers();};
-  if(v)v.onclick=()=>{A[W]=Math.min(20,(A[W]||0)+1);save();renderStreamers();};
-  root.querySelectorAll('[data-pwatch]').forEach(b=>b.onclick=()=>{const p=JSON.parse(b.dataset.pwatch);state.data.watch.push(cleanPlayer(p));state.data.watch=state.data.watch.filter(Boolean);save();b.outerHTML='<span class="badge">Watchlist</span>';toast(p.name+' added to watchlist');});
+function wireTopStreams(root){
+  root.querySelectorAll('[data-tsw]').forEach(b=>b.onclick=()=>{const p=JSON.parse(b.dataset.tsw);state.data.watch.push(cleanPlayer(p));state.data.watch=state.data.watch.filter(Boolean);save();b.outerHTML='<span class="badge" style="margin-top:4px">Watchlist</span>';toast(p.name+' added to watchlist');});
 }
+
 
 /* ===== Add / drop =====
    Drop one roster player, add a free agent (or activate someone from IR), and
@@ -1449,7 +1392,7 @@ function renderStreamers(){
   const nDrops=dropOptions().length,mode=pickupMode(),open=openSpots();
   const fb=['All','C','LW','RW','D'].map(p=>'<button class="fbtn'+(p===f?' on':'')+'" data-pf="'+p+'">'+p+'</button>').join('');
   const mg=[1,2,3].map(n=>'<button class="fbtn'+(n===state.minGames?' on':'')+'" data-mg="'+n+'">'+n+'+ games</button>').join('');
-  let h=addDropHTML()+streamPlanHTML()+'<div class="sect"><h2>By team</h2></div><p class="note">Teams and positions that could start games for you, after reshuffling your lineup. Tap a row to see that team’s matching players.'+(roster.length?'':' Add your roster first; with an empty roster every slot is open.')+'</p>'+
+  let h=addDropHTML()+topStreamsHTML()+'<div class="sect"><h2>By team</h2></div><p class="note">Teams and positions that could start games for you, after reshuffling your lineup. Tap a row to see that team’s matching players.'+(roster.length?'':' Add your roster first; with an empty roster every slot is open.')+'</p>'+
         '<p class="note">'+(mode==='open'?'You have <b>'+open+' open roster spot'+(open===1?'':'s')+'</b>, so starts shown need no drop.'
           :mode==='net'?'Your roster is full. <b>Net</b> = starts gained after dropping the best of your '+nDrops+' unlocked player'+(nDrops===1?'':'s')+'; the lineup is re-optimized, so benched players sliding into the freed slot are counted. The “open spot” number is what he’d add without a drop.'
           :'<span class="w">Your roster is full.</span> Starts shown assume an open spot; unlock players on the Roster tab to see <b>net</b> starts after a drop.')+'</p>'+
@@ -1472,7 +1415,7 @@ function renderStreamers(){
   root.innerHTML=h;
   root.querySelectorAll('[data-pf]').forEach(b=>b.onclick=()=>{state.posFilter=b.dataset.pf;renderStreamers();});
   root.querySelectorAll('[data-mg]').forEach(b=>b.onclick=()=>{state.minGames=+b.dataset.mg;renderStreamers();});
-  wireStreamPlan(root);
+  wireTopStreams(root);
   wireAddDrop(root);
   root.querySelectorAll('.srow.tap').forEach(el=>{
     const go=()=>openStreamerPlayers(el.dataset.team,el.dataset.elig.split('/'));
@@ -1956,6 +1899,111 @@ function tradeResultHTML(range,slots,myRaw,theirs,mineN){
    Every team's best daily lineups over the same days, valued the same way
    (the header's points source; your manual values aren't used here so the
    teams are compared fairly). IR players sit out. */
+/* ===== Player database (League → Players) =====
+   Every player the app knows: the built-in list plus anyone in the NHL stats
+   file who isn't on it. Each source is shown on its own, with no falling back,
+   so a blank means "no number from that source". Goalies can be ranked per
+   start or per team game (per start × share of starts). */
+const pdb={nhl:'',q:'',own:'all',pos:'All',sort:'derived',gview:'game',minGp:0,shown:60};
+let PDB_LIST=null,PDB_SIG='';
+function playerDB(){
+  const sig=(NHL&&NHL.fetchedAt)+'|'+DIR.length;
+  if(PDB_LIST&&PDB_SIG===sig) return PDB_LIST;
+  const out=DIR.map(d=>d),have=new Set(DIR.filter(d=>d.id).map(d=>String(d.id)));
+  const PM={C:['C'],L:['LW'],R:['RW'],D:['D'],G:['G']};
+  if(NHL) for(const grp of [NHL.skaters,NHL.goalies]) for(const [id,r] of Object.entries(grp)){
+    if(have.has(id)||!TEAMS.includes(r[1])) continue;
+    out.push({id:+id,name:r[0],team:r[1],pos:(PM[r[2]]||['C']).slice(),src:'stats',proj:null});   // played this or last season but isn't in the built-in list
+  }
+  PDB_LIST=out;PDB_SIG=sig;return out;
+}
+function pdbPos(p){const r=lgLookup(p);return r&&r.pos&&r.pos.length?r.pos:p.pos;}
+/* One source's number for one player: {v (what's ranked), per (per start, goalies), st (start %), gp} or null */
+function pdbVal(p,k){
+  if(k==='derived'){const v=projOf(p);return v==null?null:{v,gp:null};}
+  const n=nhlVal(p,k);if(!n) return null;
+  const g=isGoalie(p);
+  return {v:g&&pdb.gview==='game'&&n.start!=null?n.val*n.start/100:n.val,per:g?n.val:null,st:g?n.start:null,gp:n.gp};
+}
+function pdbRows(){
+  const k=pdb.sort,rows=[];
+  for(const d of playerDB()){
+    const p=Object.assign({},d,{pos:pdbPos(d)});
+    const x=pdbVal(p,k);if(!x) continue;
+    if(pdb.minGp&&k!=='derived'&&(x.gp||0)<pdb.minGp) continue;
+    rows.push({p,x,own:ownerOf(p)});
+  }
+  rows.sort((a,b)=>b.x.v-a.x.v);
+  const posRank={};rows.forEach((r,i)=>{r.rank=i+1;const g=posGroup(r.p);posRank[g]=(posRank[g]||0)+1;r.prank=g+posRank[g];});
+  return rows;
+}
+function renderPlayerDB(root){
+  const all=pdbRows(),mine=myTeamName(),q=nameKey(pdb.q);
+  const list=all.filter(r=>{
+    if(q&&!nameKey(r.p.name).includes(q)) return false;
+    if(pdb.pos!=='All'&&!r.p.pos.includes(pdb.pos)) return false;
+    if(pdb.nhl&&r.p.team!==pdb.nhl) return false;
+    if(pdb.own==='fa') return !r.own;
+    if(pdb.own==='owned') return !!r.own;
+    if(pdb.own!=='all') return r.own===pdb.own;
+    return true;
+  });
+  const teams=state.data.teams.filter(t=>teamHasPlayers(t.name));
+  const srcBtn=PPG_SOURCES.map(s=>'<button data-ps="'+s.key+'" class="'+(pdb.sort===s.key?'on':'')+'">'+(s.key==='last'?'Last yr':s.label)+'</button>').join('');
+  let h='<div class="card pad" style="margin-top:12px">'+
+    '<div class="field"><input id="pdbQ" placeholder="Search players" autocomplete="off" value="'+esc(pdb.q)+'"></div>'+
+    '<div class="pair"><div class="field half"><label>Show</label><select id="pdbOwn"><option value="all">Everyone</option><option value="fa"'+(pdb.own==='fa'?' selected':'')+'>Free agents</option><option value="owned"'+(pdb.own==='owned'?' selected':'')+'>Rostered</option>'+
+      teams.map(t=>'<option value="'+esc(t.name)+'"'+(pdb.own===t.name?' selected':'')+'>'+esc(t.name)+(t.name===mine?' (you)':'')+'</option>').join('')+'</select></div>'+
+      '<div class="field half"><label>NHL team</label><select id="pdbNhl"><option value="">All teams</option>'+TEAMS.map(t=>'<option'+(pdb.nhl===t?' selected':'')+'>'+t+'</option>').join('')+'</select></div></div>'+
+    '<div class="pair"><div class="field half"><label>Min games</label><select id="pdbGp">'+[0,3,5,10,20].map(n=>'<option value="'+n+'"'+(pdb.minGp===n?' selected':'')+'>'+(n?n+'+':'Any')+'</option>').join('')+'</select></div><div class="field half"></div></div>'+
+    '<div class="filters" style="margin:0 0 10px">'+['All','C','LW','RW','D','G'].map(x=>'<button class="fbtn'+(pdb.pos===x?' on':'')+'" data-pp="'+x+'">'+x+'</button>').join('')+'</div>'+
+    '<div class="field" style="margin:0"><label>Rank by</label><div class="seg" style="margin:0">'+srcBtn+'</div></div>'+
+    (pdb.pos==='G'||pdb.pos==='All'?'<div class="field" style="margin:10px 0 0"><label>Goalies ranked</label><div class="seg" style="margin:0"><button data-pg="game" class="'+(pdb.gview==='game'?'on':'')+'">Per team game</button><button data-pg="start" class="'+(pdb.gview==='start'?'on':'')+'">Per start</button></div><small>Per team game = points per start × his share of starts.</small></div>':'')+
+    '</div>';
+  h+='<p class="note">'+list.length+' player'+(list.length===1?'':'s')+' · fantasy points per game with your scoring, from '+esc(srcLabel(pdb.sort).toLowerCase())+(pdb.sort==='derived'?'':' NHL stats')+'. # = rank among all '+all.length+' players with a number; the second rank is within F, D or G. Players with no '+esc(srcLabel(pdb.sort))+' number aren’t listed.</p>';
+  if(!list.length) h+='<div class="card"><div class="empty-state">No players match.</div></div>';
+  const slots=slotList(),myR=effList(state.data.roster),W=rosterWeek(myR,slots);
+  if(list.length) h+='<div class="wklegend"><span class="st"></span>Starts<span class="bn"></span>Benched<span class="off"></span>No game<span class="muted">· week '+state.week+', if he were on your team</span></div>';
+  if(list.length) h+='<div class="card">'+list.slice(0,pdb.shown).map((r,i)=>{
+    const p=r.p,x=r.x,g=isGoalie(p),k=myR.findIndex(q=>samePlayer(q,p)),where=whereIs(p);
+    const strip=k>=0?stripRoster(W,k,myR[k]):stripCandidate(myR,Object.assign({},p,{proj:effPPG(p).val}),slots);
+    const others=PPG_SOURCES.filter(s=>s.key!==pdb.sort).map(s=>{const y=pdbVal(p,s.key);return y?s.short+' '+f2(y.v):null;}).filter(Boolean).join(' · ');
+    return '<div class="prow" data-pdb="'+all.indexOf(r)+'" style="cursor:pointer"><div class="lgrank" style="width:34px">'+r.rank+'<small style="display:block;font-size:10px;font-weight:600">'+r.prank+'</small></div><div class="main">'+
+      '<div class="nm">'+esc(p.name)+chips(p.pos)+statusBadge(p)+(r.own?' <span class="badge'+(r.own===mine?' ok':'')+'">'+esc(r.own===mine?'Mine':r.own)+'</span>':' <span class="badge ok">FA</span>')+'</div>'+
+      '<div class="sub">'+esc(p.team)+(x.gp!=null?' · '+x.gp+(g?' GS':' GP'):'')+(g&&x.per!=null?' · '+f2(x.per)+'/start'+(x.st!=null?' · '+x.st+'% starts':''):'')+(others?' · '+others:'')+strip+'</div></div>'+
+      '<div class="num stack"><b>'+f2(x.v)+'</b><span>'+(g&&pdb.gview==='start'?'/start':'/gm')+'</span>'+
+      (where?'<span class="badge" style="margin-top:4px">'+LIST_NAMES[where]+'</span>':'<button class="btn" style="margin-top:4px" data-pdw="'+all.indexOf(r)+'">+ Watch</button>')+'</div></div>';}).join('')+'</div>';
+  if(list.length>pdb.shown) h+='<div class="actions"><button class="btn grow" id="pdbMore">Show more ('+(list.length-pdb.shown)+')</button></div>';
+  root.innerHTML=h;
+  const re=()=>{pdb.shown=60;renderPlayerDB(root);};
+  const qi=$('#pdbQ');qi.oninput=()=>{pdb.q=qi.value;const pos=qi.selectionStart;re();const n=$('#pdbQ');n.focus();n.setSelectionRange(pos,pos);};
+  $('#pdbOwn').onchange=e=>{pdb.own=e.target.value;re();};
+  $('#pdbGp').onchange=e=>{pdb.minGp=+e.target.value;re();};
+  $('#pdbNhl').onchange=e=>{pdb.nhl=e.target.value;re();};
+  root.querySelectorAll('[data-pdw]').forEach(b=>b.onclick=e=>{e.stopPropagation();const p=all[+b.dataset.pdw].p;state.data.watch.push(cleanPlayer({name:p.name,team:p.team,pos:p.pos.slice(),id:p.id}));state.data.watch=state.data.watch.filter(Boolean);save();b.outerHTML='<span class="badge" style="margin-top:4px">Watchlist</span>';toast(p.name+' added to watchlist');});
+  root.querySelectorAll('[data-pp]').forEach(b=>b.onclick=()=>{pdb.pos=b.dataset.pp;re();});
+  root.querySelectorAll('[data-ps]').forEach(b=>b.onclick=()=>{pdb.sort=b.dataset.ps;re();});
+  root.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>{pdb.gview=b.dataset.pg;re();});
+  if($('#pdbMore')) $('#pdbMore').onclick=()=>{pdb.shown+=60;renderPlayerDB(root);};
+  root.querySelectorAll('[data-pdb]').forEach(el=>el.onclick=()=>openPlayerCard(all[+el.dataset.pdb]));
+}
+function openPlayerCard(r){
+  const p=r.p,g=isGoalie(p),mine=myTeamName(),where=whereIs(p);
+  let h='<h3>'+esc(p.name)+chips(p.pos)+statusBadge(p)+'</h3><p class="note" style="margin-top:-6px">'+esc(p.team)+' · '+(r.own?(r.own===mine?'on your team':'owned by '+esc(r.own)):'free agent')+'</p>'+
+    '<div class="card"><div class="twk thead"><span>Source</span><span>'+(g?'Per start':'Per game')+'</span><span>'+(g?'Starts':'GP')+'</span></div>'+
+    PPG_SOURCES.map(s=>{
+      if(s.key==='derived'){const v=projOf(p);return '<div class="twk"><span><b>Projected</b><small>season projection, per team game</small></span><span>'+(v==null?'–':f2(v))+'</span><span>–</span></div>';}
+      const n=nhlVal(p,s.key);
+      return '<div class="twk"><span><b>'+esc(s.label)+'</b>'+(g&&n&&n.start!=null?'<small>'+n.start+'% of team starts · '+f2(n.val*n.start/100)+' per team game</small>':'')+'</span><span>'+(n?f2(n.val):'–')+'</span><span>'+(n?n.gp:'–')+'</span></div>';
+    }).join('')+'</div>';
+  const canTrade=r.own&&r.own!==mine;
+  h+='<div class="actions">'+(!where?'<button class="btn primary grow" id="pcWatch">+ Watchlist</button>':'<span class="badge">'+LIST_NAMES[where]+'</span>')+
+    (canTrade?'<button class="btn primary grow" id="pcTrade">Check a trade</button>':'')+'<button class="btn" id="pcClose">Close</button></div>';
+  openSheet(h);
+  $('#pcClose').onclick=closeSheet;
+  if($('#pcWatch')) $('#pcWatch').onclick=()=>{state.data.watch.push(cleanPlayer({name:p.name,team:p.team,pos:p.pos.slice(),id:p.id}));state.data.watch=state.data.watch.filter(Boolean);save();closeSheet();renderAll();toast(p.name+' added to watchlist');};
+  if($('#pcTrade')) $('#pcTrade').onclick=()=>{trade.team=r.own;trade.get=[pRef(p)];closeSheet();goTab('trades');setTimeout(()=>{const c=$('#tCheck');if(c)c.scrollIntoView({block:'start'});},50);};
+}
 const league={view:'week',open:null};
 function leagueRange(){
   if(league.view==='week'){const d=weekDays(state.week);return {key:'week',label:'Week '+state.week,days:d,weeks:[state.week]};}
@@ -2205,10 +2253,102 @@ function applySections(sec,pick,fname){
   save();
 }
 
+/* ===== Paste rosters straight from Yahoo =====
+   Select-all + copy on Yahoo's roster pages gives text like:
+     Team Name / Pos / Player / C / Gabriel Vilardi / Gabriel VilardiNo new player Notes /
+     WPG - C,RW / 7:00 pm @ MTL / LW / ...
+   Each player is a slot line, his name, his name again run into his injury
+   status and a note label, then "TEAM - POSITIONS", then maybe tonight's game.
+   Works for one team's page or the whole league at once. */
+const Y_SLOTS=/^(C|LW|RW|W|F|D|G|Util|UTIL|BN|IR\+?|NA)$/;
+const Y_NOTE=/(No new player Notes|New Player Note|Player Note)\s*$/i;
+const Y_TEAMPOS=/^([A-Za-z]{2,4})\s*-\s*([A-Za-z,+\s]+)$/;
+function parseYahooRosters(text){
+  const L=String(text||'').replace(/\r/g,'').split('\n').map(s=>s.replace(/ /g,' ').trim());
+  const teams=[],warn=[];let cur=null;
+  const next=i=>{while(i<L.length&&!L[i])i++;return i;};
+  for(let i=0;i<L.length;i++){
+    const s=L[i];if(!s) continue;
+    // team header: a line followed by "Pos" then "Player"
+    const a=next(i+1),b=next(a+1);
+    if(!Y_SLOTS.test(s)&&L[a]==='Pos'&&L[b]==='Player'){cur={name:s.replace(/[\uE000-\uF8FF]/g,'').replace(/\s+/g,' ').trim(),players:[]};teams.push(cur);i=b;continue;}
+    if(s==='Pos'&&L[next(i+1)]==='Player'){if(!cur){cur={name:'',players:[]};teams.push(cur);}i=next(i+1);continue;}   // one team's page, no name above it
+    if(!Y_SLOTS.test(s)) continue;
+    const slot=s.toUpperCase()==='UTIL'?'Util':s;
+    let j=next(i+1);const name=L[j]||'';
+    if(/^--empty--$/i.test(name)){const k=next(j+1);i=L[k]==='(Empty)'?k:j;continue;}
+    let k=next(j+1),status='';
+    if(L[k]&&L[k].startsWith(name)){status=L[k].slice(name.length).replace(Y_NOTE,'').trim();k=next(k+1);}
+    const m=Y_TEAMPOS.exec(L[k]||'');
+    if(!m){warn.push('Couldn’t read the team/positions line for '+name);i=j;continue;}
+    if(!cur){cur={name:'',players:[]};teams.push(cur);}
+    cur.players.push({name,team:normTeam(m[1])||m[1].toUpperCase(),pos:parsePositions(m[2].replace(/\s/g,'')),slot,status:status.toUpperCase()});
+    i=k;
+  }
+  return {teams:teams.filter(t=>t.players.length),warn};
+}
+/* Yahoo's names don't always match the NHL's: "William"/"Will" Borgen,
+   "Freddy"/"Frederick" Gaudreau, or a player traded since the list was made.
+   Try name + team, then the full name on any team, then last name + team. */
+function yahooMatch(p){
+  const d=dirLookup(p);if(d) return d;
+  const k=nameKey(p.name),full=DIR.filter(x=>nameKey(x.name)===k);if(full.length===1) return full[0];
+  const ln=lastName(p.name),lt=DIR.filter(x=>x.team===p.team&&lastName(x.name)===ln&&(!p.pos.length||x.pos.some(z=>p.pos.includes(z))));
+  return lt.length===1?lt[0]:null;
+}
+function applyYahooRosters(P,opts){
+  const cur=state.data,names=P.teams.map(t=>t.name);
+  // teams in the paste replace their old league-data rows; everyone else is untouched
+  cur.lg.players=cur.lg.players.filter(r=>!names.includes(r.owner));
+  for(const t of P.teams){
+    if(!cur.teams.some(x=>x.name.toLowerCase()===t.name.toLowerCase())) cur.teams.push({name:t.name});
+    for(const p of t.players){
+      const d=yahooMatch(p),q={name:d?d.name:p.name,team:p.team,pos:p.pos,owner:t.name,slot:p.slot,status:p.status};
+      if(d&&d.id)q.id=d.id;
+      const old=cur.lg.players.findIndex(r=>samePlayer(r,q));   // keep his Last 14/30 etc. if the row already existed
+      if(old>=0) cur.lg.players[old]=Object.assign(cur.lg.players[old],q);else cur.lg.players.push(q);
+    }
+    if(opts.dropEdits) delete cur.stash[t.name];
+  }
+  cur.lg.players=cleanLgPlayers(cur.lg.players);
+  cur.lg.asOf=todayStamp();cur.lg.source='Yahoo paste';LG_IDX=null;OWN_IDX=null;
+  const mine=myTeamName();
+  if(opts.reloadMine&&mine&&names.includes(mine)){const L=teamFromLeague(mine,['roster','ir','watch'].flatMap(l=>cur[l]));cur.roster=L.roster;cur.ir=L.ir;
+    cur.watch=cur.watch.filter(w=>!L.roster.concat(L.ir).some(p=>samePlayer(p,w)));}
+  save();
+}
+function openYahooPaste(){
+  openSheet('<h3>Paste from Yahoo</h3><p class="note" style="margin-top:-6px">On Yahoo, open a team’s roster (or the league’s Rosters page for every team), select all, copy, and paste it here as-is. Team names come from the page; one team’s page without its name works too.</p>'+
+    '<div class="field"><textarea id="ypTxt" rows="8" placeholder="Paste the copied Yahoo page"></textarea></div><div id="ypOut"></div>'+
+    '<div class="actions"><button class="btn primary grow" id="ypGo" disabled>Import</button><button class="btn" id="ypCancel">Cancel</button></div>');
+  let P=null;
+  const show=()=>{
+    P=parseYahooRosters($('#ypTxt').value);
+    const out=$('#ypOut'),go=$('#ypGo');
+    if(!P.teams.length){out.innerHTML=$('#ypTxt').value.trim()?'<p class="note w">No roster found in that text.</p>':'';go.disabled=true;return;}
+    const mine=myTeamName(),teamOpts=state.data.teams.map(t=>'<option'+(t.name===mine?' selected':'')+'>'+esc(t.name)+'</option>').join('');
+    const unknown=[];P.teams.forEach(t=>t.players.forEach(p=>{if(!yahooMatch(p)&&!nhlIdFor(p))unknown.push(p.name+' ('+p.team+')');}));
+    out.innerHTML='<div class="card">'+P.teams.map((t,i)=>'<div class="prow"><div class="main"><div class="nm">'+(t.name?esc(t.name):'<select data-ypn="'+i+'"><option value="">Which team is this?</option>'+teamOpts+'</select>')+'</div>'+
+      '<div class="sub">'+t.players.length+' players · '+t.players.filter(p=>/^IR/.test(p.slot)).length+' on IR'+(t.players.some(p=>p.status)?' · '+t.players.filter(p=>p.status).map(p=>esc(p.name.split(' ').pop())+' '+esc(p.status)).join(', '):'')+'</div></div></div>').join('')+'</div>'+
+      (unknown.length?'<p class="note w">Not in the app’s player list ('+unknown.length+'): '+unknown.map(esc).join(', ')+'. They’ll still be imported but won’t have projections.</p>':'')+
+      (P.warn.length?'<p class="note w">'+P.warn.map(esc).join('<br>')+'</p>':'')+
+      '<label class="toggle"><input type="checkbox" id="ypMine" checked><span><b>Reload my team from this</b><br><small>'+(mine?esc(mine)+'’s roster and IR are rebuilt; locks and manual values carry over.':'Pick your team in Settings → Teams first.')+'</small></span></label>'+
+      '<label class="toggle"><input type="checkbox" id="ypEdits" checked><span><b>Replace my saved edits for these teams</b><br><small>Otherwise rosters you edited in the app keep overriding Yahoo.</small></span></label>';
+    out.querySelectorAll('[data-ypn]').forEach(sel=>sel.onchange=()=>{P.teams[+sel.dataset.ypn].name=sel.value;go.disabled=P.teams.some(t=>!t.name);});
+    go.disabled=P.teams.some(t=>!t.name);
+    go.textContent='Import '+P.teams.length+' team'+(P.teams.length===1?'':'s');
+  };
+  $('#ypTxt').oninput=show;
+  $('#ypCancel').onclick=closeSheet;
+  $('#ypGo').onclick=()=>{if(!P||!P.teams.length||P.teams.some(t=>!t.name))return;
+    applyYahooRosters(P,{reloadMine:$('#ypMine').checked,dropEdits:$('#ypEdits').checked});
+    closeSheet();toast('Imported '+P.teams.length+' team'+(P.teams.length===1?'':'s')+' from Yahoo');renderAll();};
+}
+
 function renderSettings(){
   const root=$('#tab-settings'),st=state.data.settings,total=slotList().length;
   const first=dateOf(0),last=dateOf(SCHED.weeks.length-1);
-  let h='<div class="sect"><h2>Teams · '+state.data.teams.length+'</h2></div><div class="card">'+
+  let h='<div class="sect"><h2>Teams · '+state.data.teams.length+'</h2><button class="btn" id="sYahooPaste">Paste from Yahoo</button></div><div class="card">'+
       (state.data.teams.length?state.data.teams.map((t,i)=>'<div class="stepper"><input type="radio" name="mineTeam" class="tmine" data-mine="'+i+'"'+(t.mine?' checked':'')+' aria-label="Show this team"><input class="tname" data-tname="'+i+'" value="'+esc(t.name)+'" aria-label="Team name">'+(t.mine?'<span class="badge">Showing</span>':state.data.stash[t.name]?'<span class="badge" title="Roster saved on this device">Saved</span>':'')+'<button class="btn" data-tdel="'+i+'" aria-label="Remove '+esc(t.name)+'">×</button></div>').join(''):'<div class="empty-state">No teams yet. Add your league’s teams, or import league data.</div>')+
       '<div class="stepper"><input class="tname" id="tNew" placeholder="Add a team name"><button class="btn" id="tAdd">Add</button></div>'+
     '</div><p class="note">Tap a circle to show that team on the Roster tab (and use it in Streamers and Trades). Each team keeps its own roster, locks and manual values here; the watchlist is shared. The Fantasy Team column in league data is matched to these names.'+(state.data.lg.players.length?' League data: '+state.data.lg.players.length+' players'+(state.data.lg.asOf?' as of '+esc(state.data.lg.asOf):'')+' · <a href="#" id="lgClear">clear</a>':'')+'</p>'+
@@ -2221,9 +2361,7 @@ function renderSettings(){
       '<div class="ctl"><button data-sdec="'+t.key+'" aria-label="Fewer '+t.label+'">−</button><output>'+(st.spots[t.key]||0)+'</output><button data-sinc="'+t.key+'" aria-label="More '+t.label+'">+</button></div></div>').join('')+
     '</div><p class="note">Roster limit = starting slots + bench. When you’re under it, pickups need no drop; at the limit, the Streamers tab shows net starts after your best drop.</p>'+
     '<div class="sect"><h2>Pickups</h2></div><div class="card">'+
-      '<div class="stepper"><div class="lbl"><b>Max adds per week</b><span>'+(st.maxAdds?'The streaming plan never uses more than this':'No limit')+'</span></div>'+
-      '<div class="ctl"><button data-adec aria-label="Fewer adds">−</button><output>'+(st.maxAdds||'∞')+'</output><button data-ainc aria-label="More adds">+</button></div></div>'+
-      '<label class="toggle prow" style="cursor:pointer"><input type="checkbox" id="sSameDay"'+(st.sameDay?' checked':'')+'><span><b>Pickups can play the same day</b><br><small>On: a free agent added today can start today (before his game). Off: plans start pickups tomorrow.</small></span></label>'+
+      '<label class="toggle prow" style="cursor:pointer"><input type="checkbox" id="sSameDay"'+(st.sameDay?' checked':'')+'><span><b>Pickups can play the same day</b><br><small>On: a free agent added today can start today (before his game). Off: top streams count from tomorrow.</small></span></label>'+
     '</div>'+
 
     '<div class="sect"><h2>Playoffs</h2></div><div class="card pad">'+
@@ -2282,9 +2420,8 @@ function renderSettings(){
   $('#sManual').onchange=e=>{st.useManual=e.target.checked;save();toast(st.useManual?'Manual values override':'Manual values ignored');};
   $('#sDefaults').onclick=e=>{e.preventDefault();st.slots={...DEFAULT_SLOTS};save();renderSettings();toast('Lineup slots reset');};
   $('#sPaste').onclick=()=>openPaste('roster');
+  $('#sYahooPaste').onclick=openYahooPaste;
   root.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>downloadSave(b.dataset.dl));
-  root.querySelector('[data-adec]').onclick=()=>{st.maxAdds=Math.max(0,(st.maxAdds||0)-1);save();renderSettings();};
-  root.querySelector('[data-ainc]').onclick=()=>{st.maxAdds=Math.min(20,(st.maxAdds||0)+1);save();renderSettings();};
   $('#sSameDay').onchange=e=>{st.sameDay=e.target.checked;save();};
   root.querySelectorAll('[data-sc]').forEach(inp=>inp.onchange=()=>{const v=numOrNull(inp.value);if(v===null){inp.value=st.scoring[inp.dataset.sc];return;}st.scoring[inp.dataset.sc]=v;NHL_MEMO.clear();save();});
   $('#scReset').onclick=e=>{e.preventDefault();st.scoring=defaultScoring();NHL_MEMO.clear();save();renderSettings();toast('Scoring reset');};
@@ -2458,14 +2595,16 @@ function renderAll(){
   if(state.tab==='settings')renderSettings();
   if(state.tab==='trades')renderTrades();
   if(state.tab==='league')renderLeague();
+  if(state.tab==='players')renderPlayerDB($('#tab-players'));
 }
 function goTab(tab){
   state.tab=tab;
   document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('on',x.dataset.tab===tab));
-  ['lineup','roster','stream','trades','league','settings'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==state.tab));
+  ['lineup','roster','stream','trades','league','players','settings'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==state.tab));
   window.scrollTo(0,0);renderAll();
 }
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>goTab(b.dataset.tab));
+$('#gearBtn').onclick=()=>goTab(state.tab==='settings'?'lineup':'settings');
 document.querySelectorAll('#rangeSeg button').forEach(b=>b.onclick=()=>{
   const r=b.dataset.r;
   if(r==='rseason'||r==='playoffs'){state.rosterRange=r;}

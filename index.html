@@ -132,6 +132,8 @@ nav.tabs button.on{color:var(--accent)}
 .preview{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
 .preview .row.bad{background:var(--warn-soft);color:var(--warn)}
 .muted{color:var(--muted)}
+#tsubSeg button{white-space:nowrap;padding:7px 2px;font-size:12.5px}
+.sub .g{color:var(--good);font-weight:700}
 .num.stack{display:flex;flex-direction:column;align-items:flex-end;gap:0}.num.stack .btn{padding:6px 10px;font-size:13px}
 .iconbtn.gear{display:flex;align-items:center;justify-content:center;color:var(--muted)}.iconbtn.gear svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .iconbtn.gear.on{color:var(--accent);border-color:var(--accent)}
@@ -262,6 +264,7 @@ a{color:var(--accent)}
       <button data-r="rseason">Season</button>
       <button data-r="playoffs">Playoffs</button>
     </div>
+    <div class="seg hidden" id="tsubSeg" aria-label="Trade tools"></div>
     <div class="seg hidden" id="trSeg" aria-label="Trade range"></div>
     <div class="seg hidden" id="lgSeg" aria-label="League view"></div>
     <div class="seg" id="srcSeg" aria-label="Points per game from"></div>
@@ -920,6 +923,10 @@ function renderHeader(){
   ss.classList.toggle('hidden',state.tab==='settings'||state.tab==='trades'||state.tab==='players');
   $('#gearBtn').classList.toggle('on',state.tab==='settings');   // Trades has its own match/solve choices
   // Trades: regular season / playoffs, kept in the header so it stays visible
+  const tsub=$('#tsubSeg');
+  tsub.innerHTML=[['finder','Finder'],['swap','Schedule swaps'],['check','Check a trade']].map(([k,l])=>'<button data-tsub="'+k+'" class="'+(trade.sub===k?'on':'')+'">'+l+'</button>').join('');
+  tsub.classList.toggle('hidden',state.tab!=='trades');
+  tsub.querySelectorAll('button').forEach(b=>b.onclick=()=>{trade.sub=b.dataset.tsub;window.scrollTo(0,0);renderAll();});
   const tr=$('#trSeg'),rs=state.tab==='trades'?tradeRanges():[];
   if(rs.length&&!rs.some(r=>r.key===trade.range)) trade.range=rs[0].key;
   tr.innerHTML=rs.map(r=>'<button data-tr="'+r.key+'" class="'+(r.key===trade.range?'on':'')+'">'+r.label+(r.days.length?'':' · done')+'</button>').join('');
@@ -1800,14 +1807,74 @@ function wireFinder(range){
   document.querySelectorAll('[data-prosp]').forEach(el=>el.onclick=()=>{
     const x=finder.results.list[+el.dataset.prosp];
     if(!x.give.every(p=>myTradeRaw().some(q=>samePlayer(q,p)))){toast('Your roster has changed since this search');return;}
-    trade.team=x.owner;trade.give=x.give.map(pRef);trade.get=x.get.map(pRef);
+    trade.team=x.owner;trade.give=x.give.map(pRef);trade.get=x.get.map(pRef);trade.sub='check';window.scrollTo(0,0);renderAll();return;
     renderTrades();const c=$('#tCheck');if(c)c.scrollIntoView({behavior:'smooth',block:'start'});
   });
 }
 
 /* --- Check a trade: both teams, side by side --- */
 function pRef(p){return {name:p.name,team:p.team,id:p.id};}
-const trade={team:'',give:[],get:[],range:null,fill:true};
+const trade={sub:'finder',team:'',give:[],get:[],range:null,fill:true};
+/* ===== Schedule swaps =====
+   Pick one of your players; list players on other teams whose points per game
+   are within the chosen % of his (so the trade looks even), ranked by what
+   the swap adds to your optimized lineup over the chosen days. Since the two
+   score about the same per game, the gain comes from schedule: more games,
+   games on lighter nights, or a better position fit. */
+const swap={who:null,src:'derived',tol:0.1,samePos:true,shown:25};
+function swapHTML(range){
+  const myRaw=myTradeRaw(),mine=myTeamName(),S=swap.src;
+  if(swap.who&&!myRaw.some(p=>samePlayer(p,swap.who))) swap.who=null;
+  const pick='<div class="tpick">'+myRaw.map((p,k)=>{const on=!!swap.who&&samePlayer(p,swap.who);
+    return '<button type="button" data-sw="'+k+'" class="'+(on?'on':'')+'" aria-pressed="'+on+'"><b>'+esc(p.name)+'</b><small>'+p.pos.join('/')+' · '+esc(p.team)+(p.ir?' · IR':'')+'</small></button>';}).join('')+'</div>';
+  let h='<div class="card pad" style="margin-top:12px">'+
+    '<div class="field"><label>Your player</label>'+pick+'</div>'+
+    segBar('swSrc','Points per game from',PPG_SOURCES.map(s=>[s.key,s.key==='last'?'Last yr':s.label]),S,'data-swsrc','Used both to find similar players and to score the swap.')+
+    segBar('swTol','Within',[[0.05,'±5%'],[0.1,'±10%'],[0.15,'±15%'],[0.25,'±25%']],swap.tol,'data-swtol')+
+    '<label class="toggle" style="margin:0"><input type="checkbox" id="swPos"'+(swap.samePos?' checked':'')+'><span><b>Shares a position</b><br><small>Off: any position, so a swap can also fix a lineup gap.</small></span></label></div>';
+  if(!swap.who) return h+'<div class="card"><div class="empty-state">Pick one of your players to see similar players with a better schedule.</div></div>';
+  if(!range.days.length) return h+'<div class="card"><div class="empty-state">No days left in this range.</div></div>';
+  const slots=slotList(),days=range.days,k=myRaw.findIndex(p=>samePlayer(p,swap.who)),out=myRaw[k];
+  if(!hasSource(out,S)) return h+'<div class="card"><div class="empty-state">'+esc(out.name)+' has no '+esc(srcLabel(S))+' number. Pick another source.</div></div>';
+  const meR=myValued(S),me=sideModel(meR,days,slots),v0=meR[k].proj,gp0=days.filter(i=>plays(out.team,i)).length;
+  const rows=[];
+  for(const t of state.data.teams){
+    if(t.name===mine||!teamHasPlayers(t.name)) continue;
+    const ros=leagueRoster(t.name,S);let them=null;
+    ros.forEach((q,j)=>{
+      if(!hasSource(q,S)) return;
+      if(swap.samePos&&!q.pos.some(x=>out.pos.includes(x))) return;
+      const hi=Math.max(v0,q.proj);if(hi<=0||Math.abs(q.proj-v0)>swap.tol*hi) return;
+      if(!them) them=sideModel(ros,days,slots);
+      const my=evalSide(me,[k],[q],{}).gain,th=evalSide(them,[j],[meR[k]],{}).gain;
+      // schedule edge: the same swap with him scoring exactly what your player scores per game
+      const sched=evalSide(me,[k],[Object.assign({},q,{proj:v0})],{}).gain;
+      rows.push({q,owner:t.name,my,th,sched,gp:days.filter(i=>plays(q.team,i)).length});
+    });
+  }
+  rows.sort((a,b)=>b.sched-a.sched||b.my-a.my);
+  const sg=x=>(x>=0?'+':'')+f1(x);
+  h+='<p class="note">'+rows.length+' player'+(rows.length===1?'':'s')+' within ±'+Math.round(swap.tol*100)+'% of '+esc(out.name)+'’s '+f2(v0)+'/gm ('+esc(srcLabel(S))+'), over '+esc(range.label.toLowerCase())+'. '+esc(out.name.split(' ').pop())+' has '+gp0+' games left. <b>Schedule</b> = what the swap adds if he scored exactly '+f2(v0)+'/gm like '+esc(out.name.split(' ').pop())+' (games, lighter nights, position fit); <b>total</b> also counts the small per-game difference. Sorted by schedule; tap one to check it side by side.</p>';
+  if(!rows.length) return h+'<div class="card"><div class="empty-state">Nobody on another team is that close. Try a wider range.</div></div>';
+  h+='<div class="card">'+rows.slice(0,swap.shown).map((r,i)=>'<div class="prow" data-swp="'+i+'" style="cursor:pointer"><div class="main">'+
+    '<div class="nm">'+esc(r.q.name)+chips(r.q.pos)+(statusBadge(r.q)||(r.q.ir?' <span class="chip st">IR</span>':''))+'</div>'+
+    '<div class="sub">'+esc(r.owner)+' · '+esc(r.q.team)+' · '+f2(r.q.proj)+'/gm · <b>'+r.gp+'</b> GP vs '+gp0+' · total '+sg(r.my)+' · them '+sg(r.th)+(r.my>0.05&&r.th>=-0.05?' · <span class="g">both gain</span>':'')+'</div></div>'+
+    '<div class="num"><b class="'+(r.sched>0.05?'g':r.sched<-0.05?'w':'')+'">'+sg(r.sched)+'</b><span>schedule</span></div></div>').join('')+'</div>';
+  if(rows.length>swap.shown) h+='<div class="actions"><button class="btn grow" id="swMore">Show more ('+(rows.length-swap.shown)+')</button></div>';
+  swap._rows=rows;
+  return h;
+}
+function wireSwap(){
+  const myRaw=myTradeRaw();
+  document.querySelectorAll('[data-sw]').forEach(b=>b.onclick=()=>{const p=myRaw[+b.dataset.sw];swap.who=swap.who&&samePlayer(swap.who,p)?null:pRef(p);swap.shown=25;renderTrades();});
+  document.querySelectorAll('[data-swsrc]').forEach(b=>b.onclick=()=>{swap.src=b.dataset.swsrc;renderTrades();});
+  document.querySelectorAll('[data-swtol]').forEach(b=>b.onclick=()=>{swap.tol=+b.dataset.swtol;renderTrades();});
+  if($('#swPos')) $('#swPos').onchange=e=>{swap.samePos=e.target.checked;renderTrades();};
+  if($('#swMore')) $('#swMore').onclick=()=>{swap.shown+=25;renderTrades();};
+  document.querySelectorAll('[data-swp]').forEach(el=>el.onclick=()=>{const r=swap._rows[+el.dataset.swp];
+    trade.team=r.owner;trade.give=[pRef(swap.who)];trade.get=[pRef(r.q)];finder.solve=swap.src;trade.sub='check';window.scrollTo(0,0);renderAll();});
+}
+
 function renderTrades(){
   const root=$('#tab-trades'),slots=slotList(),st=state.data.settings;
   const ranges=tradeRanges();
@@ -1820,12 +1887,13 @@ function renderTrades(){
   trade.get=trade.get.filter(r=>theirs.some(p=>samePlayer(p,r)));
   const pick=(list,sel,attr)=>'<div class="tpick">'+list.map((p,k)=>{const on=sel.some(r=>samePlayer(p,r));
       return '<button type="button" '+attr+'="'+k+'" class="'+(on?'on':'')+'" aria-pressed="'+on+'"><b>'+esc(p.name)+'</b><small>'+p.pos.join('/')+' · '+esc(p.team)+(p.ir?' · IR':'')+'</small></button>';}).join('')+'</div>';
-  let h=finderHTML(rangeT)+
-    '<div class="sect" id="tCheck"><h2>Check a trade</h2></div>';
-  if(!others.length){
-    h+='<div class="card"><div class="empty-state">Import league data and pick your team in Settings → Teams to check trades with other teams.</div></div>';
+  let h='';
+  if(trade.sub==='finder') h=finderHTML(rangeT);
+  else if(trade.sub==='swap') h=swapHTML(rangeT);
+  else if(!others.length){
+    h+='<div class="card" style="margin-top:12px"><div class="empty-state">Import league data and pick your team in Settings → Teams to check trades with other teams.</div></div>';
   } else {
-    h+='<div class="card pad">'+
+    h+='<div class="card pad" id="tCheck" style="margin-top:12px">'+
       '<div class="field"><label>Trade with</label><select id="tTeam"><option value="">Choose a team…</option>'+others.map(t=>'<option'+(t.name===trade.team?' selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select></div>'+
       '<div class="field"><label>You give · '+trade.give.length+'/2</label>'+pick(myRaw,trade.give,'data-tg')+'</div>'+
       (trade.team?'<div class="field"><label>You get · '+trade.get.length+'/2</label>'+pick(theirs,trade.get,'data-tt')+'</div>':'')+
@@ -1840,7 +1908,7 @@ function renderTrades(){
     } else h+=tradeResultHTML(rangeT,slots,myRaw,theirs,mineN);
   }
   root.innerHTML=h;
-  wireFinder(rangeT);
+  wireFinder(rangeT);wireSwap();
   if($('#tTeam')) $('#tTeam').onchange=e=>{trade.team=e.target.value;trade.get=[];renderTrades();};
   const toggle=(sel,p)=>{const i=sel.findIndex(r=>samePlayer(p,r));if(i>=0)sel.splice(i,1);else{if(sel.length>=2){toast('Up to 2 players a side');return false;}sel.push(pRef(p));}return true;};
   root.querySelectorAll('[data-tg]').forEach(b=>b.onclick=()=>{if(toggle(trade.give,myRaw[+b.dataset.tg]))renderTrades();});
@@ -2002,7 +2070,7 @@ function openPlayerCard(r){
   openSheet(h);
   $('#pcClose').onclick=closeSheet;
   if($('#pcWatch')) $('#pcWatch').onclick=()=>{state.data.watch.push(cleanPlayer({name:p.name,team:p.team,pos:p.pos.slice(),id:p.id}));state.data.watch=state.data.watch.filter(Boolean);save();closeSheet();renderAll();toast(p.name+' added to watchlist');};
-  if($('#pcTrade')) $('#pcTrade').onclick=()=>{trade.team=r.own;trade.get=[pRef(p)];closeSheet();goTab('trades');setTimeout(()=>{const c=$('#tCheck');if(c)c.scrollIntoView({block:'start'});},50);};
+  if($('#pcTrade')) $('#pcTrade').onclick=()=>{trade.sub='check';trade.team=r.own;trade.get=[pRef(p)];closeSheet();goTab('trades');setTimeout(()=>{const c=$('#tCheck');if(c)c.scrollIntoView({block:'start'});},50);};
 }
 const league={view:'week',open:null};
 function leagueRange(){
@@ -2063,7 +2131,7 @@ function openLeagueTeam(name){
   h+='<div class="actions">'+(t.mine?'':'<button class="btn primary grow" id="ltTrade">Check a trade</button><button class="btn" id="ltShow">Show on Roster</button>')+'<button class="btn" id="ltClose">Close</button></div>';
   openSheet(h);
   $('#ltClose').onclick=closeSheet;
-  if($('#ltTrade')) $('#ltTrade').onclick=()=>{trade.team=name;trade.get=[];closeSheet();goTab('trades');setTimeout(()=>{const c=$('#tCheck');if(c)c.scrollIntoView({block:'start'});},50);};
+  if($('#ltTrade')) $('#ltTrade').onclick=()=>{trade.sub='check';trade.team=name;trade.get=[];closeSheet();goTab('trades');setTimeout(()=>{const c=$('#tCheck');if(c)c.scrollIntoView({block:'start'});},50);};
   if($('#ltShow')) $('#ltShow').onclick=()=>{const i=state.data.teams.findIndex(x=>x.name===name);if(i>=0)switchTeam(i);closeSheet();goTab('roster');};
 }
 
